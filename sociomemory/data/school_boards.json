@@ -1,0 +1,20 @@
+{
+  "dps": {"board": "CBSE", "medium": "English", "fee_yearly": 200000, "has_inclusion_program": true, "tier": "premium"},
+  "delhi public school": {"board": "CBSE", "medium": "English", "fee_yearly": 200000, "has_inclusion_program": true, "tier": "premium"},
+  "kendriya vidyalaya": {"board": "CBSE", "medium": "English", "fee_yearly": 15000, "has_inclusion_program": false, "tier": "govt"},
+  "jawahar navodaya": {"board": "CBSE", "medium": "Hindi", "fee_yearly": 0, "has_inclusion_program": false, "tier": "govt"},
+  "ryan international": {"board": "CBSE", "medium": "English", "fee_yearly": 150000, "has_inclusion_program": true, "tier": "premium"},
+  "bishop cotton": {"board": "ICSE", "medium": "English", "fee_yearly": 250000, "has_inclusion_program": false, "tier": "elite"},
+  "national public school": {"board": "CBSE", "medium": "English", "fee_yearly": 120000, "has_inclusion_program": true, "tier": "premium"},
+  "inventure academy": {"board": "CBSE+IB", "medium": "English", "fee_yearly": 400000, "has_inclusion_program": true, "tier": "elite"},
+  "indus international": {"board": "IB", "medium": "English", "fee_yearly": 600000, "has_inclusion_program": true, "tier": "elite"},
+  "greenwood high": {"board": "CBSE+IGCSE", "medium": "English", "fee_yearly": 350000, "has_inclusion_program": true, "tier": "elite"},
+  "orchids international": {"board": "CBSE", "medium": "English", "fee_yearly": 80000, "has_inclusion_program": false, "tier": "mid"},
+  "vidyashilp academy": {"board": "CBSE", "medium": "English", "fee_yearly": 300000, "has_inclusion_program": true, "tier": "elite"},
+  "narayana": {"board": "CBSE", "medium": "English+Telugu", "fee_yearly": 60000, "has_inclusion_program": false, "tier": "mid"},
+  "sri chaitanya": {"board": "CBSE", "medium": "Telugu+English", "fee_yearly": 55000, "has_inclusion_program": false, "tier": "mid"},
+  "podar international": {"board": "CBSE+IB", "medium": "English", "fee_yearly": 300000, "has_inclusion_program": true, "tier": "elite"},
+  "vibgyor": {"board": "CBSE", "medium": "English", "fee_yearly": 150000, "has_inclusion_program": true, "tier": "premium"},
+  "mother's pet": {"board": "ICSE", "medium": "English", "fee_yearly": 80000, "has_inclusion_program": false, "tier": "mid"},
+  "cambridge school": {"board": "CBSE", "medium": "English", "fee_yearly": 180000, "has_inclusion_program": false, "tier": "premium"}
+}

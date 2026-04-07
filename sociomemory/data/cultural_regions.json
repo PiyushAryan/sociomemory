@@ -1,0 +1,18 @@
+{
+  "karnataka": {"primary_language": "Kannada", "languages": ["Kannada", "English", "Hindi"], "cosmopolitan_index": 0.75, "festivals": ["Ugadi", "Dasara", "Deepavali", "Sankranti"]},
+  "maharashtra": {"primary_language": "Marathi", "languages": ["Marathi", "Hindi", "English"], "cosmopolitan_index": 0.8, "festivals": ["Gudi Padwa", "Ganesh Chaturthi", "Diwali"]},
+  "telangana": {"primary_language": "Telugu", "languages": ["Telugu", "Hindi", "Urdu", "English"], "cosmopolitan_index": 0.7, "festivals": ["Bathukamma", "Bonalu", "Ugadi"]},
+  "andhra_pradesh": {"primary_language": "Telugu", "languages": ["Telugu", "English"], "cosmopolitan_index": 0.6, "festivals": ["Ugadi", "Sankranti", "Vinayaka Chaturthi"]},
+  "tamil_nadu": {"primary_language": "Tamil", "languages": ["Tamil", "English"], "cosmopolitan_index": 0.65, "festivals": ["Pongal", "Deepavali", "Navratri"]},
+  "kerala": {"primary_language": "Malayalam", "languages": ["Malayalam", "English"], "cosmopolitan_index": 0.7, "festivals": ["Onam", "Vishu", "Thrissur Pooram"]},
+  "west_bengal": {"primary_language": "Bengali", "languages": ["Bengali", "Hindi", "English"], "cosmopolitan_index": 0.75, "festivals": ["Durga Puja", "Poila Boishakh", "Diwali"]},
+  "gujarat": {"primary_language": "Gujarati", "languages": ["Gujarati", "Hindi", "English"], "cosmopolitan_index": 0.7, "festivals": ["Navratri", "Uttarayan", "Diwali"]},
+  "rajasthan": {"primary_language": "Hindi", "languages": ["Hindi", "Rajasthani", "English"], "cosmopolitan_index": 0.5, "festivals": ["Holi", "Teej", "Gangaur", "Diwali"]},
+  "uttar_pradesh": {"primary_language": "Hindi", "languages": ["Hindi", "Urdu", "English"], "cosmopolitan_index": 0.55, "festivals": ["Holi", "Diwali", "Eid", "Janmashtami"]},
+  "delhi": {"primary_language": "Hindi", "languages": ["Hindi", "Punjabi", "English", "Urdu"], "cosmopolitan_index": 0.9, "festivals": ["Diwali", "Holi", "Eid", "Gurpurab", "Christmas"]},
+  "haryana": {"primary_language": "Hindi", "languages": ["Hindi", "Haryanvi", "Punjabi"], "cosmopolitan_index": 0.6, "festivals": ["Holi", "Baisakhi", "Teej", "Diwali"]},
+  "punjab": {"primary_language": "Punjabi", "languages": ["Punjabi", "Hindi", "English"], "cosmopolitan_index": 0.65, "festivals": ["Baisakhi", "Gurpurab", "Lohri", "Holi"]},
+  "madhya_pradesh": {"primary_language": "Hindi", "languages": ["Hindi", "English"], "cosmopolitan_index": 0.5, "festivals": ["Diwali", "Holi", "Navratri"]},
+  "odisha": {"primary_language": "Odia", "languages": ["Odia", "Hindi", "English"], "cosmopolitan_index": 0.5, "festivals": ["Rath Yatra", "Durga Puja", "Raja Festival"]},
+  "assam": {"primary_language": "Assamese", "languages": ["Assamese", "Bengali", "English"], "cosmopolitan_index": 0.55, "festivals": ["Bihu", "Durga Puja", "Eid"]}
+}

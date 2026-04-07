@@ -1,0 +1,10 @@
+{
+  "therapy": ["occupational_therapy", "speech_therapy", "aba_therapy", "sensory_integration", "physiotherapy", "play_therapy", "music_therapy", "behaviour_therapy"],
+  "education": ["school", "tuition_center", "library", "coaching_institute", "special_school"],
+  "outdoor": ["park", "playground", "garden", "sports_complex", "swimming_pool", "cycling_track", "football_ground"],
+  "health": ["hospital", "clinic", "pharmacy", "diagnostic_center", "paediatric_clinic"],
+  "religious": ["temple", "mosque", "church", "gurudwara", "synagogue", "buddhist_center", "jain_temple"],
+  "leisure": ["mall", "restaurant", "cinema", "gaming_zone", "art_class", "music_class"],
+  "nature": ["lake", "hill", "forest", "botanical_garden", "wildlife_sanctuary", "beach"],
+  "community": ["community_center", "ngo", "special_school", "inclusive_playground", "support_group"]
+}
