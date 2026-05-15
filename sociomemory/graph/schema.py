@@ -14,7 +14,7 @@ ALLOWED_EDGES: dict[tuple[NodeType, EdgeType], list[NodeType]] = {
     (NodeType.STATE, EdgeType.LOCATED_IN): [NodeType.COUNTRY],
     (NodeType.NEIGHBORHOOD, EdgeType.HAS_CONTEXT): [
         NodeType.ECONOMIC, NodeType.CULTURAL, NodeType.SAFETY,
-        NodeType.TRANSPORT, NodeType.REAL_ESTATE,
+        NodeType.TRANSPORT, NodeType.REAL_ESTATE, NodeType.CIVIC,
     ],
     (NodeType.NEIGHBORHOOD, EdgeType.NEAR_TO): [NodeType.PLACE, NodeType.SCHOOL, NodeType.THERAPY_CENTER],
     (NodeType.VISIT, EdgeType.AT): [NodeType.PLACE],
@@ -25,6 +25,7 @@ ALLOWED_EDGES: dict[tuple[NodeType, EdgeType], list[NodeType]] = {
     (NodeType.REAL_ESTATE, EdgeType.DERIVES): [NodeType.INCOME],
     (NodeType.SCHOOL, EdgeType.DERIVES): [NodeType.INCOME],
     (NodeType.EMPLOYER, EdgeType.DERIVES): [NodeType.INCOME],
+    (NodeType.ECONOMIC, EdgeType.DERIVES): [NodeType.INCOME],
     (NodeType.INCOME, EdgeType.IMPLIES): [NodeType.IMPLICATION],
     (NodeType.SAFETY, EdgeType.IMPLIES): [NodeType.IMPLICATION],
     (NodeType.TRANSPORT, EdgeType.IMPLIES): [NodeType.IMPLICATION],

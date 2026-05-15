@@ -5,12 +5,23 @@ build-backend = "hatchling.build"
 [project]
 name = "sociomemory"
 version = "0.1.0"
-description = "Graph memory engine for social context inference — built for VIRa AI Coach"
+description = "Graph memory engine for social context inference — built for VIRa AI Coach (proprietary, patent pending)"
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "MIT" }
-authors = [{ name = "Nirvana" }]
+license = { file = "LICENSE" }
+authors = [{ name = "NirvanaAIsutra Pvt. Ltd.", email = "licensing@nirvanaaisutra.com" }]
+maintainers = [{ name = "Piyush Aryan", email = "piyush.aryan@nirvanaaisutra.com" }]
 keywords = ["memory", "graph", "neo4j", "faiss", "ai", "coaching", "ndd"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Other Audience",
+    "License :: Other/Proprietary License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 
 dependencies = [
     "neo4j>=5.0.0",
@@ -40,8 +51,16 @@ dev = [
 ]
 all = ["sociomemory[geo]"]
 
+[project.urls]
+Homepage = "https://nirvanaaisutra.com"
+Licensing = "mailto:licensing@nirvanaaisutra.com"
+
 [tool.hatch.build.targets.wheel]
 packages = ["sociomemory"]
+exclude = ["sociomemory/tests", "sociomemory/**/__pycache__"]
+
+[tool.hatch.build.targets.sdist]
+exclude = [".venv", ".pytest_cache", ".ruff_cache", "dist", "build", "*.egg-info", "arch.png", ".DS_Store"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

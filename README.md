@@ -5,7 +5,11 @@
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![Neo4j](https://img.shields.io/badge/Neo4j-5.x-008CC1)
 ![FAISS](https://img.shields.io/badge/FAISS-in--process-orange)
-![License](https://img.shields.io/badge/license-MIT-green)
+![License](https://img.shields.io/badge/license-Proprietary-red)
+![Patent](https://img.shields.io/badge/patent-pending-orange)
+
+> **⚠️ PROPRIETARY SOFTWARE — NOT FREE TO USE.**
+> sociomemory is a closed, source-available proprietary library owned by **NirvanaAIsutra Technologies Pvt. Ltd.** It is **not** open source and is **not** licensed for personal, academic, research, evaluation, internal-business, or commercial use without a signed Commercial Agreement. Possession of this package — including via PyPI, GitHub, or any mirror — grants no rights of use. One or more inventions embodied herein are **patent pending**. See [`LICENSE`](LICENSE) for full terms. To license, contact **licensing@nirvanaaisutra.com**.
 
 ---
 
@@ -30,36 +34,36 @@ sociomemory is India-first. It ships with bundled data for Indian cities, neighb
 │   Conversation text                                             │
 │        │                                                        │
 │        ▼                                                        │
-│   ┌──────────────┐    ┌──────────────┐    ┌─────────────────┐  │
-│   │  Extractor   │───▶│   Enricher   │───▶│   Implicator    │  │
-│   │  (signals)   │    │  (providers) │    │  (coaching)     │  │
-│   └──────────────┘    └──────┬───────┘    └────────┬────────┘  │
-│                              │                     │           │
-│              ┌───────────────┼─────────────────────┘           │
+│   ┌──────────────┐    ┌──────────────┐    ┌─────────────────┐   │
+│   │  Extractor   │───▶│   Enricher   │───▶│   Implicator    │   │
+│   │  (signals)   │    │  (providers) │    │  (coaching)     │   │
+│   └──────────────┘    └──────┬───────┘    └────────┬────────┘   │
+│                              │                     │            │
+│              ┌───────────────┼─────────────────────┘            │
 │              ▼               ▼                                  │
-│   ┌────────────────────────────────────────────────────────┐   │
-│   │                   MemoryGraph                          │   │
-│   │                                                        │   │
-│   │   Neo4j (brain)        FAISS (vector search)          │   │
-│   │   ┌──────────────┐     ┌────────────────────┐         │   │
-│   │   │ Nodes/Edges  │     │  Embeddings index  │         │   │
-│   │   │ LIVES_IN     │     │  per child         │         │   │
-│   │   │ DERIVES      │     └────────────────────┘         │   │
-│   │   │ UPDATES      │                                     │   │
-│   │   │ IMPLIES      │     SQLite (cache + consent)        │   │
-│   │   └──────────────┘     ┌────────────────────┐         │   │
-│   │                        │  enrichment cache  │         │   │
-│   └────────────────────────│  consent records   │─────────┘   │
-│                            └────────────────────┘             │
+│   ┌────────────────────────────────────────────────────────┐    │
+│   │                   MemoryGraph                          │    │
+│   │                                                        │    │
+│   │   Neo4j (brain)        FAISS (vector search)           │    │
+│   │   ┌──────────────┐     ┌────────────────────┐          │    │
+│   │   │ Nodes/Edges  │     │  Embeddings index  │          │    │
+│   │   │ LIVES_IN     │     │  per child         │          │    │
+│   │   │ DERIVES      │     └────────────────────┘          │    │
+│   │   │ UPDATES      │                                     │    │
+│   │   │ IMPLIES      │     SQLite (cache + consent)        │    │
+│   │   └──────────────┘     ┌────────────────────┐          │    │
+│   │                        │  enrichment cache  │          │    │
+│   └────────────────────────│  consent records   │─────────┘     │
+│                            └────────────────────┘               │
 │                                                                 │
 │   Engines                  Providers                            │
-│   ┌───────────────────┐    ┌───────────────────────────────┐   │
-│   │ IncomeEstimator   │    │ OfflineLocationProvider       │   │
-│   │ BehavioralInf.    │    │   bundled india_cities.json   │   │
-│   │ TradeOffDetector  │    │   india_real_estate.json      │   │
-│   │ VersioningEngine  │    │   cultural_regions.json       │   │
-│   └───────────────────┘    │ ExaLocationProvider (online)  │   │
-│                            └───────────────────────────────┘   │
+│   ┌───────────────────┐    ┌───────────────────────────────┐    │
+│   │ IncomeEstimator   │    │ OfflineLocationProvider       │    │
+│   │ BehavioralInf.    │    │   bundled india_cities.json   │    │
+│   │ TradeOffDetector  │    │   india_real_estate.json      │    │
+│   │ VersioningEngine  │    │   cultural_regions.json       │    │
+│   └───────────────────┘    │ ExaLocationProvider (online)  │    │
+│                            └───────────────────────────────┘    │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -562,6 +566,14 @@ sociomemory/
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+**Proprietary — All Rights Reserved.** See [LICENSE](LICENSE) for the full Sociomemory Proprietary Software License Agreement.
 
-Built by [Nirvana](https://nirvana.ai) for VIRa, an AI Agentic Coach for children with ASD, ADHD, and Dyslexia. India-first.
+This software is **not** open source and is **not** free to use. No rights of use, copy, modification, redistribution, hosting, fine-tuning, benchmarking, or derivative work are granted by default — including for personal, academic, research, evaluation, internal-business, or commercial purposes. Use is permitted **only** under a separate signed Commercial Agreement executed with NirvanaAIsutra Technologies Pvt. Ltd.
+
+**Patent Pending.** One or more inventions embodied in this software — including methods for inferring socioeconomic and cultural context from sparse conversational signals via a graph memory engine, multi-hop inferential traversal, cascade-versioned memory, and privacy-scoped consent boundaries — are the subject of pending patent applications. No patent license is granted.
+
+**Bundled datasets** (`india_cities.json`, `india_real_estate.json`, `cultural_regions.json`, `school_boards.json`, `amenity_categories.json`) are proprietary curated compilations protected as database/compilation works. Extraction or re-use of any substantial part is expressly prohibited.
+
+For commercial, evaluation, or academic licensing inquiries: **licensing@nirvanaaisutra.com**
+
+Built by **NirvanaAIsutra** for VIRa, an AI Agentic Coach for children with ASD, ADHD, and Dyslexia. India-first.

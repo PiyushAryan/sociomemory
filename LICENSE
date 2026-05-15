@@ -1,0 +1,182 @@
+SOCIOMEMORY PROPRIETARY SOFTWARE LICENSE AGREEMENT
+Version 1.0 — Effective 2026
+
+Copyright (c) 2025–2026 NirvanaAIsutra Technologies Pvt. Ltd. ("Licensor").
+Inventor of record: Piyush Aryan. All rights reserved.
+
+IMPORTANT — READ CAREFULLY. THIS IS A LEGALLY BINDING AGREEMENT. THE SOFTWARE
+KNOWN AS "sociomemory" AND ALL ASSOCIATED FILES, DOCUMENTATION, BUNDLED DATA,
+MODELS, GRAPH SCHEMAS, AND OUTPUTS (COLLECTIVELY, THE "SOFTWARE") ARE
+PROPRIETARY AND CONFIDENTIAL WORKS OF AUTHORSHIP OF THE LICENSOR.
+
+THE SOFTWARE IS NOT FREE SOFTWARE AND IS NOT OPEN SOURCE. IT IS NOT LICENSED
+UNDER ANY OSI-APPROVED OR FREE SOFTWARE FOUNDATION-APPROVED LICENSE. POSSESSION
+OF A COPY DOES NOT GRANT ANY RIGHT TO USE IT.
+
+================================================================================
+1. NO LICENSE GRANTED BY DEFAULT
+================================================================================
+No right, title, license, or interest in the Software — whether by implication,
+estoppel, exhaustion, course of dealing, or otherwise — is granted to any
+person or entity except by a separate, signed, written commercial license
+agreement executed by an authorized officer of the Licensor (a "Commercial
+Agreement"). Distribution of this Software via package indices (including but
+not limited to PyPI), source repositories, container registries, or any other
+channel is for evaluation reference and identification only and does NOT
+constitute a grant of license to use, copy, run, modify, or distribute.
+
+================================================================================
+2. PROHIBITED ACTS (ABSENT A COMMERCIAL AGREEMENT)
+================================================================================
+Without a valid, current Commercial Agreement, you may NOT, and may not permit
+or assist any third party to:
+
+  (a) install, execute, run, load into memory, or otherwise use the Software,
+      in whole or in part, for any purpose including personal, academic,
+      research, evaluation, internal business, or commercial use;
+  (b) copy, reproduce, mirror, fork, republish, or redistribute the Software
+      or any portion thereof, in source or binary form, including via package
+      registries, Git mirrors, container images, model hubs, or bundled
+      products;
+  (c) modify, adapt, translate, port, create derivative works of, or prepare
+      improvements to the Software;
+  (d) reverse engineer, decompile, disassemble, extract, scrape, retrain on,
+      fine-tune from, or otherwise attempt to derive the source code,
+      algorithms, graph schema, prompt templates, bundled datasets,
+      inference chains, or trade secrets embodied in the Software, except to
+      the minimum extent expressly permitted by non-waivable mandatory law;
+  (e) use the Software, its outputs, or any data derived from it to train,
+      evaluate, benchmark, or improve any machine learning model, embedding
+      model, large language model, or competing product;
+  (f) remove, alter, or obscure any copyright, patent, trademark, attribution,
+      or proprietary notice;
+  (g) sublicense, rent, lease, lend, sell, resell, assign, transfer, host as
+      a service (including SaaS, PaaS, API, or managed-service offerings), or
+      otherwise make the Software available to any third party;
+  (h) use the Software in any manner that violates applicable law, including
+      data protection, child safety, medical device, or export control law;
+  (i) circumvent or disable any technical or contractual usage limitation,
+      telemetry, or license-key mechanism;
+  (j) publish benchmarks, comparisons, performance figures, or security
+      assessments of the Software without the Licensor's prior written
+      consent.
+
+Each prohibited act constitutes a material breach of this Agreement and an
+infringement of the Licensor's intellectual property rights.
+
+================================================================================
+3. INTELLECTUAL PROPERTY; PATENT NOTICE
+================================================================================
+The Software is protected by copyright, trade secret, and other intellectual
+property laws and international treaties. The Licensor and/or its affiliates
+retain all right, title, and interest in and to the Software, including all
+copyrights, patents (issued, pending, and future), trademarks, trade secrets,
+know-how, and moral rights.
+
+PATENT PENDING. One or more inventions embodied in the Software — including
+without limitation methods for inferring socioeconomic and cultural context
+from sparse conversational signals via a graph memory engine, multi-hop
+inferential traversal, cascade-versioned memory, and privacy-scoped consent
+boundaries — are the subject of pending and/or issued patent applications.
+No patent license, express or implied, is granted under this Agreement. Any
+unauthorized use may give rise to claims for patent infringement in addition
+to copyright and trade-secret claims.
+
+"Sociomemory," "VIRa," "NirvanaAIsutra," and associated logos are trademarks
+of the Licensor. No trademark license is granted hereunder.
+
+================================================================================
+4. CONFIDENTIALITY
+================================================================================
+The Software constitutes valuable confidential information and trade secrets
+of the Licensor. Any party in possession of the Software shall: (i) hold it
+in strict confidence; (ii) take at least the same measures it takes to protect
+its own confidential information of like importance, and in no event less than
+a reasonable standard of care; and (iii) not disclose any portion of the
+Software, its design, performance, or contents to any third party. Public
+availability via a package index does NOT waive confidentiality of the
+algorithms, data structures, schemas, prompt templates, or bundled datasets.
+
+================================================================================
+5. BUNDLED DATA
+================================================================================
+The bundled data files (including but not limited to india_cities.json,
+india_real_estate.json, cultural_regions.json, school_boards.json, and
+amenity_categories.json) are curated proprietary compilations of the Licensor.
+They are protected as compilations under copyright and as database rights
+where applicable. Extraction or re-use of any substantial part of these
+compilations is expressly prohibited.
+
+================================================================================
+6. NO WARRANTY
+================================================================================
+THE SOFTWARE IS PROVIDED "AS IS" AND "AS AVAILABLE," WITH ALL FAULTS AND
+WITHOUT WARRANTY OF ANY KIND. THE LICENSOR DISCLAIMS ALL WARRANTIES, WHETHER
+EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, INCLUDING WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, NON-INFRINGEMENT,
+ACCURACY, AND QUIET ENJOYMENT. THE SOFTWARE IS NOT A MEDICAL DEVICE AND IS
+NOT INTENDED FOR DIAGNOSIS, TREATMENT, OR PREVENTION OF ANY DISEASE OR
+CONDITION.
+
+================================================================================
+7. LIMITATION OF LIABILITY
+================================================================================
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, IN NO EVENT SHALL THE LICENSOR, ITS
+AFFILIATES, OFFICERS, EMPLOYEES, OR AGENTS BE LIABLE FOR ANY INDIRECT,
+INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY, OR PUNITIVE DAMAGES, OR FOR
+LOST PROFITS, LOST DATA, BUSINESS INTERRUPTION, OR COST OF SUBSTITUTE GOODS
+OR SERVICES, ARISING OUT OF OR RELATED TO THE SOFTWARE OR THIS AGREEMENT,
+EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES. THE LICENSOR'S TOTAL
+AGGREGATE LIABILITY UNDER THIS AGREEMENT SHALL NOT EXCEED ONE HUNDRED INDIAN
+RUPEES (INR 100).
+
+================================================================================
+8. TERMINATION
+================================================================================
+This Agreement and any rights potentially arising hereunder terminate
+automatically and without notice upon any breach. Upon termination, you must
+immediately cease all use of the Software and permanently destroy all copies
+(including derivative outputs, caches, vector indices, and graph snapshots)
+in your possession or control, and certify such destruction in writing upon
+request. Sections 2–7, 9, and 10 survive termination.
+
+================================================================================
+9. EXPORT, SANCTIONS, AND COMPLIANCE
+================================================================================
+You shall not export, re-export, transfer, or use the Software in violation
+of any applicable export-control or sanctions laws, including those of India,
+the United States, the European Union, and the United Kingdom.
+
+================================================================================
+10. GOVERNING LAW; JURISDICTION
+================================================================================
+This Agreement is governed by the laws of the Republic of India, without
+regard to conflict-of-laws principles. The courts at Bengaluru, Karnataka,
+India shall have exclusive jurisdiction over all disputes arising out of or
+relating to this Agreement, and each party irrevocably submits to such
+jurisdiction. The United Nations Convention on Contracts for the
+International Sale of Goods does not apply.
+
+================================================================================
+11. COMMERCIAL LICENSING
+================================================================================
+To obtain a commercial license, evaluation license, academic license, or any
+other usage right not granted by this Agreement, contact:
+
+  NirvanaAIsutra Technologies Pvt. Ltd.
+  Attn: Licensing — sociomemory
+  Email: licensing@nirvanaaisutra.com
+
+Until a Commercial Agreement is signed by both parties, NO USE IS AUTHORIZED.
+
+================================================================================
+12. ENTIRE AGREEMENT; SEVERABILITY
+================================================================================
+This Agreement is the entire agreement between the parties with respect to
+the Software and supersedes all prior or contemporaneous communications and
+proposals (oral or written). If any provision is held unenforceable, the
+remaining provisions remain in full force and effect, and the unenforceable
+provision shall be modified to the minimum extent necessary to make it
+enforceable while preserving its intent.
+
+END OF LICENSE.

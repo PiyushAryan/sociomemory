@@ -14,3 +14,13 @@ uv.lock
 ~/.sociomemory/
 .env
 *.db
+.DS_Store
+/docs/
+*.log
+*.bak
+*.tmp
+*.swp
+*.swo
+.idea/
+.vscode/
+.claude/
