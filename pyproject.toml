@@ -35,9 +35,6 @@ dependencies = [
     "aiofiles>=23.0.0",
 ]
 
-[project.scripts]
-sociomemory-dashboard = "sociomemory.dashboard.server:main"
-
 [project.optional-dependencies]
 online = [
     "exa-py>=1.0.0",
@@ -61,7 +58,7 @@ Licensing = "mailto:licensing@nirvanaaisutra.com"
 
 [tool.hatch.build.targets.wheel]
 packages = ["sociomemory"]
-exclude = ["sociomemory/tests", "sociomemory/**/__pycache__"]
+exclude = ["sociomemory/tests", "sociomemory/dashboard", "sociomemory/**/__pycache__"]
 
 [tool.hatch.build.targets.sdist]
 exclude = [".venv", ".pytest_cache", ".ruff_cache", "dist", "build", "*.egg-info", "arch.png", ".DS_Store"]
