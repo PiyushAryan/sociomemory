@@ -9,7 +9,6 @@ logger = logging.getLogger(__name__)
 
 
 class Neo4jBackend:
-    """Async Neo4j driver wrapper with connection pooling and schema init."""
 
     SCHEMA_QUERIES = [
         "CREATE CONSTRAINT node_id_unique IF NOT EXISTS FOR (n:SocioNode) REQUIRE n.id IS UNIQUE",

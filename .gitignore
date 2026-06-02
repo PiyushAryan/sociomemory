@@ -3,6 +3,7 @@ __pycache__/
 *.pyo
 .venv/
 venv/
+node_modules/
 dist/
 build/
 *.egg-info/
@@ -13,6 +14,7 @@ uv.lock
 *.map.json
 ~/.sociomemory/
 .env
+.env.local
 *.db
 .DS_Store
 /docs/
@@ -24,3 +26,6 @@ uv.lock
 .idea/
 .vscode/
 .claude/
+# not part of the pip package
+sociomemory/dashboard/
+tests/test_dashboard_export.py

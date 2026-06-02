@@ -9,10 +9,6 @@ from sociomemory.models.coaching import IncomeEstimate
 
 
 class SocioProfile(BaseModel):
-    """
-    A computed VIEW over the MemoryGraph. Not stored — derived on demand.
-    Think of it as a SQL VIEW: derived, not persisted.
-    """
 
     child_id: str
 
@@ -63,7 +59,6 @@ class SocioProfile(BaseModel):
     # e.g. {"nodes": 142, "edges": 287, "gaps": ["school", "profession"]}
 
     def to_llm_context(self, include_sensitive: bool = False) -> str:
-        """Serialize to natural language for LLM system prompt injection."""
         lines: list[str] = [f"## Social Context for child {self.child_id}"]
 
         if self.city:

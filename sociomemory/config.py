@@ -16,6 +16,7 @@ class SociomemoryConfig:
     llm_backend: str = "gemini"          # "gemini" | "openai" | "local"
     llm_api_key: str = ""
     llm_model: str = ""                  # default per backend if empty
+    llm_embedding_model: str = ""        # default per backend if empty
 
     # --- FAISS + SQLite ---
     data_dir: Path = field(default_factory=lambda: Path.home() / ".sociomemory")
@@ -26,7 +27,6 @@ class SociomemoryConfig:
     embedding_dim: int = 768             # must match LLM embedder
 
     # --- Enrichment ---
-    google_maps_api_key: str = ""
     exa_api_key: str = ""
     enrichment_cache_ttl_hours: int = 24
 

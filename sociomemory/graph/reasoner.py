@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 
 
 class GraphReasoner:
-    """High-level reasoning interface over the MemoryGraph."""
 
     def __init__(self, graph: "MemoryGraph", llm: "BaseLLM | None" = None):
         self._graph = graph

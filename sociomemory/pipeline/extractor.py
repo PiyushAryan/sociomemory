@@ -27,28 +27,47 @@ PROFESSION_PATTERNS = [
     r"(?:papa|dad|father|mummy|mom|mother)\s+(?:is\s+(?:a|an)\s+)?([a-zA-Z\s]+(?:engineer|doctor|teacher|manager|developer|analyst|officer|director|consultant|accountant))",
 ]
 
+# keyword -> (place_type, place_subtype). place_type is the SPECIFIC type that
+# the builder, behavioral inference, and temporal pattern detection key on;
+# place_subtype carries the refinement (e.g. an ISKCON temple).
 PLACE_TYPES = {
-    "iskcon": ("religious", "iskcon"),
-    "temple": ("religious", "temple"),
-    "mosque": ("religious", "mosque"),
-    "church": ("religious", "church"),
-    "gurudwara": ("religious", "gurudwara"),
-    "park": ("outdoor", "park"),
-    "playground": ("outdoor", "playground"),
-    "mall": ("urban", "mall"),
-    "museum": ("cultural", "museum"),
-    "zoo": ("outdoor", "zoo"),
-    "beach": ("outdoor", "beach"),
-    "mountain": ("outdoor", "mountain"),
-    "hill station": ("outdoor", "hill_station"),
-    "water park": ("outdoor", "water_park"),
-    "snow park": ("outdoor", "snow_park"),
-    "library": ("cultural", "library"),
+    "iskcon": ("temple", "iskcon"),
+    "temple": ("temple", None),
+    "mosque": ("mosque", None),
+    "church": ("church", None),
+    "gurudwara": ("gurudwara", None),
+    "park": ("park", None),
+    "playground": ("playground", None),
+    "mall": ("mall", None),
+    "museum": ("museum", None),
+    "zoo": ("zoo", None),
+    "beach": ("beach", None),
+    "mountain": ("mountain", None),
+    "hill station": ("hill_station", None),
+    "water park": ("water_park", None),
+    "snow park": ("snow_park", None),
+    "library": ("library", None),
+    # transit & everyday public places (web-enriched downstream)
+    "metro station": ("metro_station", None),
+    "metro": ("metro_station", None),
+    "railway station": ("railway_station", None),
+    "bus stand": ("bus_stand", None),
+    "airport": ("airport", None),
+    "restaurant": ("restaurant", None),
+    "cafe": ("cafe", None),
+    "hospital": ("hospital", None),
+    "clinic": ("clinic", None),
+    "market": ("market", None),
+    "supermarket": ("supermarket", None),
+    "stadium": ("stadium", None),
+    "cinema": ("cinema", None),
+    "theatre": ("theatre", None),
+    "theater": ("theatre", None),
+    "aquarium": ("aquarium", None),
 }
 
 
 class SignalExtractor:
-    """Extract structured signals from raw conversation text."""
 
     def __init__(self, llm: "BaseLLM | None" = None):
         self._llm = llm
@@ -101,16 +120,23 @@ class SignalExtractor:
         return results
 
     def _extract_visit(self, text: str, source: SignalSource, now: datetime) -> list[Signal]:
-        results = []
         text_lower = text.lower()
-        for keyword, (category, subtype) in PLACE_TYPES.items():
-            if keyword in text_lower:
-                results.append(Signal(
-                    raw_text=text, signal_type=SignalType.VISIT,
-                    extracted_value=keyword, confidence=0.75, source=source, timestamp=now,
-                    place_type=category, place_subtype=subtype,
-                ))
-        return results
+        # Collapse overlapping keywords (e.g. "iskcon temple" matches both
+        # "iskcon" and "temple") into one signal per place_type, preferring the
+        # entry that carries a refinement subtype.
+        by_type: dict[str, Signal] = {}
+        for keyword, (place_type, subtype) in PLACE_TYPES.items():
+            if keyword not in text_lower:
+                continue
+            existing = by_type.get(place_type)
+            if existing is not None and existing.place_subtype and subtype is None:
+                continue
+            by_type[place_type] = Signal(
+                raw_text=text, signal_type=SignalType.VISIT,
+                extracted_value=keyword, confidence=0.75, source=source, timestamp=now,
+                place_type=place_type, place_subtype=subtype,
+            )
+        return list(by_type.values())
 
     async def _llm_extract(self, text: str, source: SignalSource, now: datetime) -> list[Signal]:
         if not self._llm:

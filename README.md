@@ -232,9 +232,10 @@ config = SociomemoryConfig(
     neo4j_database="neo4j",                  # AuraDB always uses "neo4j"
 
     # LLM backend
-    llm_backend="gemini",                    # "gemini" | "openai" | "ollama"
+    llm_backend="openrouter",                # "gemini" | "openai" | "openrouter" | "ollama"
     llm_api_key="...",
     llm_model="",                            # leave empty for per-backend default
+    llm_embedding_model="",                  # leave empty for per-backend default
 
     # Local storage (FAISS + SQLite)
     data_dir=Path.home() / ".sociomemory",   # auto-created; FAISS + SQLite live here
@@ -279,7 +280,41 @@ Install `sociomemory[online]` and set `exa_api_key` to enable real-time enrichme
 - Local community resources, NGOs, and support groups
 - Recent safety and infrastructure updates
 
+### OpenRouter (LLM backend)
+
+Use OpenRouter when you want one API key for multiple hosted LLM providers:
+
+```python
+config = SociomemoryConfig(
+    llm_backend="openrouter",
+    llm_api_key="sk-or-...",
+    llm_model="moonshotai/kimi-k2.6:free",
+    llm_embedding_model="nvidia/llama-nemotron-embed-vl-1b-v2:free",
+    embedding_dim=1536,
+)
+```
+
+For the dashboard:
+
+```bash
+export SOCIOMEMORY_LLM_BACKEND="openrouter"
+export SOCIOMEMORY_LLM_API_KEY="$OPENROUTER_API_KEY"
+export SOCIOMEMORY_LLM_MODEL="moonshotai/kimi-k2.6:free"
+export SOCIOMEMORY_LLM_EMBEDDING_MODEL="nvidia/llama-nemotron-embed-vl-1b-v2:free"
+export SOCIOMEMORY_EMBEDDING_DIM="1536"
+```
+
 Exa results are LLM-parsed and stored in the graph with a TTL (default 24 hours). All Exa calls are cached in SQLite — repeated ingestion of the same location does not re-hit the API.
+
+### Browser-acquired location
+
+The local dashboard can acquire a location through the browser geolocation permission prompt and
+send latitude/longitude to the local API. Coordinates are resolved locally against
+`sociomemory/data/india_cities.json` with the offline GeoPandas-compatible resolver before the normal
+location provider chain runs. If `s2sphere` is installed through `sociomemory[geo]`, the API also
+adds coarse S2 cell tokens to the signal metadata for privacy-preserving spatial indexing instead of
+persisting raw coordinates. Set `SOCIOMEMORY_EXA_API_KEY` plus an LLM backend to add online Exa
+enrichment after the bundled offline context.
 
 ---
 

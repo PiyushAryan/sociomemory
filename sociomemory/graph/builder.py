@@ -12,11 +12,6 @@ logger = logging.getLogger(__name__)
 
 
 class GraphBuilder:
-    """
-    Translates raw enrichment data from providers into graph mutations.
-    Each build_* method accepts provider output and returns (nodes, edges)
-    ready to be merged into MemoryGraph via merge_subgraph().
-    """
 
     def __init__(self, graph: MemoryGraph):
         self._graph = graph
@@ -212,7 +207,6 @@ class GraphBuilder:
         neighborhood_node_id: str,
         places: list[dict],
     ) -> tuple[list[Node], list[Edge]]:
-        """Build NEAR_TO edges for nearby amenities (parks, therapy centers, etc.)."""
         nodes: list[Node] = []
         edges: list[Edge] = []
         for place_data in places:

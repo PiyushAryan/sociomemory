@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 
 
 class FaissIndex:
-    """Per-child FAISS index for semantic search over graph node embeddings."""
 
     def __init__(self, child_id: str, dim: int = 768, data_dir: str = "~/.sociomemory/faiss"):
         self.child_id = child_id

@@ -1,4 +1,3 @@
-"""Tests for income estimation multi-hop inference."""
 from __future__ import annotations
 
 import pytest

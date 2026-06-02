@@ -18,7 +18,6 @@ def _confidence(count: int) -> float:
 
 
 class BehavioralInference:
-    """Analyze visit patterns to build identity, lifestyle, and sensory profiles."""
 
     def __init__(self, graph: "MemoryGraph"):
         self._graph = graph

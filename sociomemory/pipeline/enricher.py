@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 
 
 class EnrichmentPipeline:
-    """Orchestrates signal → provider → graph enrichment."""
 
     def __init__(self, graph: "MemoryGraph", providers: dict[SignalType, list["BaseProvider"]]):
         self._graph = graph

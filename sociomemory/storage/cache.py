@@ -8,7 +8,6 @@ from typing import Any, Optional
 
 
 class SQLiteCache:
-    """TTL cache for provider API responses, backed by SQLite."""
 
     SCHEMA = """
     CREATE TABLE IF NOT EXISTS cache (

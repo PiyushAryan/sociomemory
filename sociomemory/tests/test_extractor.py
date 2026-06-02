@@ -1,4 +1,3 @@
-"""Tests for SignalExtractor."""
 from __future__ import annotations
 
 import pytest
@@ -39,7 +38,7 @@ async def test_extract_mountain_visit():
     extractor = SignalExtractor()
     signals = await extractor.extract("We went to the mountain for a picnic last weekend")
     visit_sigs = [s for s in signals if s.signal_type == SignalType.VISIT]
-    assert any(s.place_type == "outdoor" for s in visit_sigs)
+    assert any(s.place_type == "mountain" for s in visit_sigs)
 
 
 @pytest.mark.asyncio

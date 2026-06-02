@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import Any
 
 from sociomemory.config import SociomemoryConfig
+from sociomemory.graph import cypher as Q
 from sociomemory.graph.memory_graph import MemoryGraph
 from sociomemory.graph.nodes import NodeType
 from sociomemory.graph.reasoner import GraphReasoner
@@ -45,7 +47,6 @@ class _PrivacyAPI:
         return self._consent.check_consent(child_id, scope)
 
     async def erase(self, child_id: str) -> None:
-        """GDPR erasure: delete all graph data, FAISS index, and consent records."""
         from sociomemory.graph import cypher as Q
         await self._neo4j.run_write(Q.ERASE_CHILD, child_id=child_id)
         from pathlib import Path
@@ -61,21 +62,6 @@ class _PrivacyAPI:
 
 
 class Sociomemory:
-    """
-    Public API for the sociomemory graph memory engine.
-
-    Usage:
-        config = SociomemoryConfig(
-            neo4j_uri="bolt://localhost:7687",
-            neo4j_user="neo4j",
-            neo4j_password="password",
-            llm_backend="gemini",
-            llm_api_key="...",
-        )
-        async with Sociomemory(config) as sm:
-            await sm.ingest("child_001", "I live in Koramangala")
-            context = await sm.get_context_for_llm("child_001")
-    """
 
     def __init__(self, config: SociomemoryConfig):
         self._config = config
@@ -110,12 +96,32 @@ class Sociomemory:
     def _build_llm(self):
         backend = self._config.llm_backend.lower()
         key = self._config.llm_api_key
+        model = self._config.llm_model
+        embed_model = self._config.llm_embedding_model
         if backend == "gemini" and key:
             from sociomemory.llm.gemini import GeminiLLM
-            return GeminiLLM(api_key=key)
+            kwargs = {"api_key": key}
+            if model:
+                kwargs["model"] = model
+            if embed_model:
+                kwargs["embed_model"] = embed_model
+            return GeminiLLM(**kwargs)
         if backend == "openai" and key:
             from sociomemory.llm.openai import OpenAILLM
-            return OpenAILLM(api_key=key)
+            kwargs = {"api_key": key}
+            if model:
+                kwargs["model"] = model
+            if embed_model:
+                kwargs["embed_model"] = embed_model
+            return OpenAILLM(**kwargs)
+        if backend == "openrouter" and key:
+            from sociomemory.llm.openrouter import OpenRouterLLM
+            kwargs = {"api_key": key}
+            if model:
+                kwargs["model"] = model
+            if embed_model:
+                kwargs["embed_model"] = embed_model
+            return OpenRouterLLM(**kwargs)
         if backend == "ollama":
             from sociomemory.llm.local import OllamaLLM
             return OllamaLLM()
@@ -128,40 +134,97 @@ class Sociomemory:
                 dim=self._config.embedding_dim,
                 data_dir=str(self._config.faiss_dir),
             )
-            self._graphs[child_id] = MemoryGraph(child_id=child_id, neo4j=self._neo4j, faiss=faiss)
+            self._graphs[child_id] = MemoryGraph(
+                child_id=child_id, neo4j=self._neo4j, faiss=faiss, embedder=self._llm
+            )
         return self._graphs[child_id]
 
     def _build_providers(self, signal_type) -> list:
         from sociomemory.models.signals import SignalType
-        from sociomemory.providers.offline import OfflineLocationProvider, OfflineSchoolProvider
+        from sociomemory.providers.offline import (
+            OfflineLocationProvider,
+            OfflineSchoolProvider,
+            OfflineVisitProvider,
+        )
         location_providers = [OfflineLocationProvider()]
-        if self._config.exa_api_key and self._llm:
+        if not self._config.offline_only and self._config.exa_api_key and self._llm:
             from sociomemory.providers.exa import ExaLocationProvider
             location_providers.append(ExaLocationProvider(
                 api_key=self._config.exa_api_key,
                 llm=self._llm,
                 cache=self._cache,
             ))
+
+        # Public-place web enrichment runs after the offline visit provider and
+        # fuses Exa + OpenAI web search. Enabled whenever online + an LLM exists;
+        # it degrades to whichever retrieval source is available.
+        visit_providers = [OfflineVisitProvider()]
+        if not self._config.offline_only and self._llm:
+            from sociomemory.providers.place import PlaceEnrichmentProvider
+            visit_providers.append(PlaceEnrichmentProvider(
+                llm=self._llm,
+                cache=self._cache,
+                exa_api_key=self._config.exa_api_key,
+            ))
+
         providers_map = {
             SignalType.LOCATION: location_providers,
             SignalType.SCHOOL: [OfflineSchoolProvider()],
+            SignalType.VISIT: visit_providers,
         }
         return providers_map.get(signal_type, [])
 
-    async def ensure_child_node(self, child_id: str) -> str:
+    async def ensure_child_node(self, child_id: str, name: str | None = None) -> str:
         graph = self._get_graph(child_id)
         child_nodes = await graph.get_nodes_by_type(NodeType.CHILD)
         if child_nodes:
-            return child_nodes[0].id
+            node = child_nodes[0]
+            if name and node.properties.get("name") != name:
+                await graph._neo4j.run_write(
+                    Q.MERGE_NODE,
+                    id=node.id,
+                    child_id=child_id,
+                    node_type=NodeType.CHILD.value,
+                    props={"name": name},
+                    now=datetime.utcnow().isoformat(),
+                )
+            return node.id
+        properties = {"child_id": child_id}
+        if name:
+            properties["name"] = name
         child_node = await graph.add_node(
             node_type=NodeType.CHILD,
-            properties={"child_id": child_id},
+            properties=properties,
             confidence=1.0,
         )
         return child_node.id
 
+    async def ingest_person(
+        self,
+        child_id: str,
+        *,
+        name: str | None = None,
+        area: str | None = None,
+        school: str | None = None,
+        places: list[str] | None = None,
+        notes: str | None = None,
+    ) -> dict:
+        await self.ensure_child_node(child_id, name=name)
+        steps: dict[str, Any] = {}
+        if area and area.strip():
+            steps["area"] = await self.ingest_signal(child_id, "location", area.strip())
+        if school and school.strip():
+            steps["school"] = await self.ingest_signal(child_id, "school", school.strip())
+        for place in places or []:
+            place = (place or "").strip()
+            if place:
+                steps[f"visit:{place}"] = await self.ingest(child_id, f"We recently visited {place}.")
+        if notes and notes.strip():
+            steps["notes"] = await self.ingest(child_id, notes.strip())
+        summary = await (await self.get_graph(child_id)).summary()
+        return {"child_id": child_id, "name": name, "steps": steps, "summary": summary}
+
     async def ingest(self, child_id: str, text: str, source: str = "conversation") -> dict:
-        """Extract signals from text and enrich the graph. Safe to fire-and-forget."""
         await self.ensure_child_node(child_id)
         graph = self._get_graph(child_id)
 
@@ -193,6 +256,61 @@ class Sociomemory:
         providers = self._build_providers(sig.signal_type)
         pipeline = EnrichmentPipeline(graph=graph, providers={sig.signal_type: providers})
         return await pipeline.enrich([sig])
+
+    async def acquire_location(
+        self,
+        child_id: str,
+        lat: float,
+        lng: float,
+        accuracy_m: float | None = None,
+    ) -> dict:
+        if not -90 <= lat <= 90:
+            raise ValueError("lat must be between -90 and 90")
+        if not -180 <= lng <= 180:
+            raise ValueError("lng must be between -180 and 180")
+
+        await self.ensure_child_node(child_id)
+        location_match = self._resolve_location(lat, lng)
+        s2_index = self._s2_index(lat, lng)
+        acquired_value = location_match.label if location_match else f"{lat:.5f},{lng:.5f}"
+
+        from sociomemory.models.signals import Signal, SignalSource, SignalType
+        metadata = {
+            "accuracy_m": accuracy_m,
+            "acquired_via": "browser_geolocation",
+            "location_resolved": bool(location_match),
+            "resolution_source": location_match.source if location_match else None,
+            "nearest_distance_km": location_match.distance_km if location_match else None,
+            "s2_cells": s2_index.cells if s2_index else {},
+            "s2_source": s2_index.source if s2_index else None,
+        }
+        sig = Signal(
+            raw_text=f"Browser geolocation acquired near {acquired_value}.",
+            signal_type=SignalType.LOCATION,
+            extracted_value=acquired_value,
+            confidence=0.82 if location_match else 0.55,
+            source=SignalSource.PROFILE,
+            metadata=metadata,
+        )
+        graph = self._get_graph(child_id)
+        providers = self._build_providers(SignalType.LOCATION)
+        pipeline = EnrichmentPipeline(graph=graph, providers={SignalType.LOCATION: providers})
+        result = await pipeline.enrich([sig])
+        result["location"] = acquired_value
+        result["location_resolved"] = bool(location_match)
+        result["resolution_source"] = location_match.source if location_match else None
+        result["nearest_distance_km"] = location_match.distance_km if location_match else None
+        result["s2_cells"] = s2_index.cells if s2_index else {}
+        result["online_enrichment"] = any(getattr(provider, "requires_network", False) for provider in providers)
+        return result
+
+    def _resolve_location(self, lat: float, lng: float):
+        from sociomemory.providers.geocode import OfflineGeoResolver
+        return OfflineGeoResolver().reverse(lat, lng)
+
+    def _s2_index(self, lat: float, lng: float):
+        from sociomemory.providers.geocode import s2_cell_index
+        return s2_cell_index(lat, lng)
 
     async def get_graph(self, child_id: str) -> MemoryGraph:
         await self.ensure_child_node(child_id)
@@ -274,3 +392,8 @@ class Sociomemory:
         from sociomemory.engine.versioning import VersioningEngine
         stale_ids = await VersioningEngine(graph).recompute_stale()
         return {"stale_nodes": len(stale_ids), "node_ids": stale_ids}
+
+    async def segment_episodes(self, child_id: str) -> dict:
+        graph = await self.get_graph(child_id)
+        from sociomemory.engine.episodes import EpisodeSegmenter
+        return await EpisodeSegmenter(graph).segment()

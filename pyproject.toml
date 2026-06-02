@@ -35,6 +35,9 @@ dependencies = [
     "aiofiles>=23.0.0",
 ]
 
+[project.scripts]
+sociomemory-dashboard = "sociomemory.dashboard.server:main"
+
 [project.optional-dependencies]
 online = [
     "exa-py>=1.0.0",
@@ -42,6 +45,7 @@ online = [
 geo = [
     "geopandas>=0.14.0",
     "shapely>=2.0.0",
+    "s2sphere>=0.2.5",
 ]
 dev = [
     "pytest>=8.0.0",
@@ -64,7 +68,7 @@ exclude = [".venv", ".pytest_cache", ".ruff_cache", "dist", "build", "*.egg-info
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["tests"]
+testpaths = ["tests", "sociomemory/tests"]
 
 [tool.ruff]
 target-version = "py311"

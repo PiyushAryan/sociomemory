@@ -15,11 +15,6 @@ logger = logging.getLogger(__name__)
 
 
 class TradeOffDetector:
-    """
-    Finds trade-offs via:
-    1. CONTRADICTS edges in the graph (explicit conflicts)
-    2. IMPLICATION nodes with opposing directions on same dimension
-    """
 
     def __init__(self, graph: "MemoryGraph", llm: "BaseLLM | None" = None):
         self._graph = graph

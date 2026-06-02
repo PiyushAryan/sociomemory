@@ -41,6 +41,7 @@ class NodeType(str, Enum):
     VISIT = "Visit"
     SENSORY_EVIDENCE = "SensoryEvidence"
     THERAPY_OPPORTUNITY = "TherapyOpportunity"
+    EPISODE = "Episode"
     # Identity (inferred from behavioral patterns)
     RELIGIOUS = "Religious"
     DIETARY = "Dietary"
@@ -69,7 +70,6 @@ class Node(BaseModel):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
     def to_neo4j_props(self) -> dict[str, Any]:
-        """Flatten to Neo4j-compatible property dict."""
         props: dict[str, Any] = {
             "id": self.id,
             "child_id": self.child_id,
@@ -88,7 +88,6 @@ class Node(BaseModel):
 
     @classmethod
     def from_neo4j(cls, record: dict, node_type: NodeType, child_id: str) -> "Node":
-        """Reconstruct from Neo4j record dict."""
         props = dict(record)
         node_id = props.pop("id", str(uuid.uuid4()))
         props.pop("child_id", None)

@@ -6,7 +6,6 @@ logger = logging.getLogger(__name__)
 
 
 class GeminiLLM:
-    """Google Gemini backend."""
 
     def __init__(self, api_key: str, model: str = "gemini-2.0-flash", embed_model: str = "text-embedding-004"):
         self._api_key = api_key

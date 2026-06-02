@@ -39,7 +39,6 @@ def _bracket_from_monthly(monthly: float) -> str:
 
 
 class IncomeEstimator:
-    """Multi-hop graph traversal to estimate family income."""
 
     def __init__(self, graph: "MemoryGraph"):
         self._graph = graph

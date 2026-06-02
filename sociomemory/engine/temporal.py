@@ -15,11 +15,6 @@ logger = logging.getLogger(__name__)
 
 
 class TemporalEngine:
-    """
-    Dual-timestamp queries and behavioral pattern detection.
-    event_date = when the event happened
-    document_date = when the info was recorded (conversation date)
-    """
 
     def __init__(self, graph: "MemoryGraph"):
         self._graph = graph

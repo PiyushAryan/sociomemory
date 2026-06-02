@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 
 
 class CoachingImplicator:
-    """Traverse the graph to produce actionable coaching implications with provenance."""
 
     def __init__(self, graph: "MemoryGraph", llm: "BaseLLM | None" = None):
         self._graph = graph

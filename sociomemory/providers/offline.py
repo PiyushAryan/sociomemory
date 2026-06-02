@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -24,7 +25,6 @@ def _load_json(filename: str) -> Any:
 
 
 class OfflineLocationProvider:
-    """Offline location enrichment from bundled india_cities.json."""
 
     provider_name = "offline_location"
     requires_network = False
@@ -107,7 +107,6 @@ class OfflineLocationProvider:
 
 
 class OfflineSchoolProvider:
-    """Offline school enrichment from bundled school_boards.json."""
 
     provider_name = "offline_school"
     requires_network = False
@@ -150,6 +149,40 @@ class OfflineSchoolProvider:
         if "international" in name_lower:
             return {"board": "IB", "medium": "English", "fee_yearly": 500000}
         return {}
+
+    async def health_check(self) -> bool:
+        return True
+
+
+class OfflineVisitProvider:
+
+    provider_name = "offline_visit"
+    requires_network = False
+
+    async def enrich(self, signal: Signal, graph) -> tuple[list[Node], list[Edge]]:
+        if signal.signal_type != SignalType.VISIT:
+            return [], []
+
+        child_nodes = await graph.get_nodes_by_type(NodeType.CHILD)
+        if not child_nodes:
+            return [], []
+
+        place_type = signal.place_type or signal.extracted_value
+        if not place_type:
+            return [], []
+
+        builder = GraphBuilder(graph)
+        return builder.build_visit(
+            child_node_id=child_nodes[0].id,
+            place_name=signal.place_name or signal.extracted_value.title(),
+            place_type=place_type,
+            place_subtype=signal.place_subtype,
+            event_date=signal.event_date or signal.timestamp or datetime.utcnow(),
+            mood=signal.mood,
+            sensory_notes=signal.sensory_notes,
+            source_chunk=signal.raw_text,
+            confidence=signal.confidence,
+        )
 
     async def health_check(self) -> bool:
         return True

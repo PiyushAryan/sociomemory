@@ -1,7 +1,3 @@
-"""
-Cypher query library — all reusable Neo4j queries in one place.
-Every query here is a module-level string constant or a builder function.
-"""
 from __future__ import annotations
 
 # ---------------------------------------------------------------------------
@@ -9,7 +5,7 @@ from __future__ import annotations
 # ---------------------------------------------------------------------------
 
 MERGE_NODE = """
-MERGE (n:SocioNode {{id: $id, child_id: $child_id}})
+MERGE (n:SocioNode {id: $id, child_id: $child_id})
 ON CREATE SET n += $props, n.created_at = $now, n.node_type = $node_type
 ON MATCH SET n += $props, n.updated_at = $now, n.node_type = $node_type
 RETURN n
@@ -55,18 +51,23 @@ MATCH (a:SocioNode {id: $source_id})
 MATCH (b:SocioNode {id: $target_id})
 MERGE (a)-[r:{edge_type}]->(b)
 ON CREATE SET r += $props, r.created_at = $now
-ON MATCH SET r.weight = CASE WHEN r.weight < $weight THEN $weight ELSE r.weight END,
+ON MATCH SET r += {
+               weight: CASE
+                 WHEN coalesce(properties(r)['weight'], 0.0) < $weight THEN $weight
+                 ELSE properties(r)['weight']
+               END
+             },
              r.updated_at = $now
 RETURN r
 """
 
 GET_EDGES_FROM = """
-MATCH (a:SocioNode {{id: $node_id}})-[r]->(b:SocioNode)
+MATCH (a:SocioNode {id: $node_id})-[r]->(b:SocioNode)
 RETURN type(r) AS edge_type, r AS rel, b AS target
 """
 
 GET_EDGES_TO = """
-MATCH (a:SocioNode)-[r]->(b:SocioNode {{id: $node_id}})
+MATCH (a:SocioNode)-[r]->(b:SocioNode {id: $node_id})
 RETURN type(r) AS edge_type, r AS rel, a AS source
 """
 
@@ -79,9 +80,14 @@ RETURN count(r) AS count
 # Traversal
 # ---------------------------------------------------------------------------
 
-TRAVERSE = """
-MATCH path = (start:SocioNode {id: $start_id})-[r*1..$max_depth]->(end:SocioNode)
-WHERE ALL(rel IN relationships(path) WHERE rel.weight >= $min_confidence)
+# NOTE: Neo4j forbids parameters in the variable-length bound (`*1..$n`); the
+# depth must be a literal. Use build_traverse()/build_neighborhood() so the
+# int-coerced depth is inlined safely (coercion also prevents injection).
+def build_traverse(max_depth: int = 5) -> str:
+    depth = int(max_depth)
+    return f"""
+MATCH path = (start:SocioNode {{id: $start_id}})-[r*1..{depth}]->(end:SocioNode)
+WHERE ALL(rel IN relationships(path) WHERE coalesce(properties(rel)['weight'], 1.0) >= $min_confidence)
 RETURN nodes(path) AS path_nodes, relationships(path) AS path_rels
 LIMIT $limit
 """
@@ -93,8 +99,10 @@ RETURN [n IN nodes(path) | n.id] AS node_ids,
        length(path) AS path_length
 """
 
-NEIGHBORHOOD = """
-MATCH (n:SocioNode {id: $node_id})-[*1..$radius]-(neighbor:SocioNode)
+def build_neighborhood(radius: int = 2) -> str:
+    hops = int(radius)
+    return f"""
+MATCH (n:SocioNode {{id: $node_id}})-[*1..{hops}]-(neighbor:SocioNode)
 WHERE neighbor.child_id = $child_id
 RETURN DISTINCT neighbor
 """
@@ -104,7 +112,7 @@ MATCH path = (a:SocioNode {child_id: $child_id, node_type: $from_type})
              -[r*1..6]->
              (b:SocioNode {child_id: $child_id, node_type: $to_type})
 RETURN [n IN nodes(path) | n] AS path_nodes,
-       [rel IN relationships(path) | {type: type(rel), weight: rel.weight}] AS path_rels,
+       [rel IN relationships(path) | {type: type(rel), weight: coalesce(properties(rel)['weight'], 1.0)}] AS path_rels,
        length(path) AS path_length
 ORDER BY path_length ASC
 LIMIT 10
@@ -128,7 +136,7 @@ LIMIT 20
 
 FIND_CONTRADICTIONS = """
 MATCH (a:SocioNode {child_id: $child_id})-[r:CONTRADICTS]->(b:SocioNode)
-RETURN a, b, r.weight AS tension_score
+RETURN a, b, coalesce(properties(r)['weight'], 0.5) AS tension_score
 ORDER BY tension_score DESC
 """
 
@@ -171,7 +179,7 @@ MATCH (n:SocioNode {child_id: $child_id})
 WHERE n.event_date IS NOT NULL
   AND n.event_date >= $start
   AND n.event_date <= $end
-{type_filter}
+__TYPE_FILTER__
 RETURN n
 ORDER BY n.event_date ASC
 """
@@ -235,9 +243,9 @@ OPTIONAL MATCH (c)<-[:PARENT_OF]-(parent:SocioNode {node_type: 'Parent'})
 OPTIONAL MATCH (parent)-[:WORKS_AT]->(employer:SocioNode {node_type: 'Employer'})
 OPTIONAL MATCH (income:SocioNode {child_id: $child_id, node_type: 'Income'})
 OPTIONAL MATCH (c)-[:VISITED]->(:SocioNode)-[:AT]->(place:SocioNode)
-OPTIONAL MATCH (c)-[:INDICATES|:DERIVES*1..3]->(religious:SocioNode {node_type: 'Religious'})
-OPTIONAL MATCH (c)-[:INDICATES|:DERIVES*1..3]->(lifestyle:SocioNode {node_type: 'Lifestyle'})
-OPTIONAL MATCH (c)-[:INDICATES|:DERIVES*1..3]->(sensory:SocioNode {node_type: 'SensoryEvidence'})
+OPTIONAL MATCH (c)-[:INDICATES|DERIVES*1..3]->(religious:SocioNode {node_type: 'Religious'})
+OPTIONAL MATCH (c)-[:INDICATES|DERIVES*1..3]->(lifestyle:SocioNode {node_type: 'Lifestyle'})
+OPTIONAL MATCH (c)-[:INDICATES|DERIVES*1..3]->(sensory:SocioNode {node_type: 'SensoryEvidence'})
 RETURN
     area, econ, safety, culture, transport, re,
     school, parent, employer, income,
@@ -248,23 +256,20 @@ RETURN
 """
 
 def build_merge_edge(edge_type: str) -> str:
-    """Build a MERGE edge Cypher with the given relationship type."""
     return MERGE_EDGE.replace("{edge_type}", edge_type)
 
 def build_traverse_with_types(edge_types: list[str], max_depth: int = 5) -> str:
-    """Build a traversal query filtered to specific edge types."""
     if edge_types:
         rel_filter = "|".join(edge_types)
         return f"""
 MATCH path = (start:SocioNode {{id: $start_id}})-[r:{rel_filter}*1..{max_depth}]->(end:SocioNode)
-WHERE ALL(rel IN relationships(path) WHERE rel.weight >= $min_confidence)
+WHERE ALL(rel IN relationships(path) WHERE coalesce(properties(rel)['weight'], 1.0) >= $min_confidence)
   AND end.child_id = $child_id
 RETURN nodes(path) AS path_nodes, relationships(path) AS path_rels
 LIMIT $limit
 """
-    return TRAVERSE
+    return build_traverse(max_depth)
 
 def build_event_date_query(node_type: str | None = None) -> str:
-    """Build temporal query, optionally filtered by node type."""
     type_filter = f"AND n.node_type = '{node_type}'" if node_type else ""
-    return QUERY_BY_EVENT_DATE.format(type_filter=type_filter)
+    return QUERY_BY_EVENT_DATE.replace("__TYPE_FILTER__", type_filter)

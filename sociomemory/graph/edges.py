@@ -60,6 +60,8 @@ class EdgeType(str, Enum):
     # Temporal
     # ----------------------------------------------------------------
     SEASONAL = "SEASONAL"
+    PART_OF = "PART_OF"
+    FOLLOWS = "FOLLOWS"
 
 
 class Edge(BaseModel):

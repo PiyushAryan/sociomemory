@@ -6,7 +6,6 @@ from typing import Any
 
 
 class Anonymizer:
-    """Pseudonymize sensitive node properties for LLM context injection."""
 
     def __init__(self, salt: str = "sociomemory"):
         self._salt = salt

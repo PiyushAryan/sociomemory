@@ -18,11 +18,6 @@ logger = logging.getLogger(__name__)
 
 
 class ExaLocationProvider:
-    """
-    Online location enrichment using Exa.ai semantic search.
-    Finds civic, political, cultural, therapy resource context for any India location.
-    Results are cached in SQLite (TTL 24h) to avoid redundant API calls.
-    """
 
     provider_name = "exa_location"
     requires_network = True
@@ -118,7 +113,6 @@ JSON:"""
                 results = exa.search_and_contents(
                     query,
                     num_results=3,
-                    use_autoprompt=True,
                     text={"max_characters": 600},
                 )
                 for r in results.results:

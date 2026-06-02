@@ -8,7 +8,6 @@ logger = logging.getLogger(__name__)
 
 
 class OllamaLLM:
-    """Ollama local model backend."""
 
     def __init__(
         self,

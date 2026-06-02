@@ -18,7 +18,6 @@ class ConsentScope(str, Enum):
 
 
 class ConsentManager:
-    """Node-level consent management, backed by SQLite."""
 
     SCHEMA = """
     CREATE TABLE IF NOT EXISTS consent (

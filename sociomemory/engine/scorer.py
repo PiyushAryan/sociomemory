@@ -35,7 +35,6 @@ NODE_RELEVANCE_WEIGHTS: dict[NodeType, float] = {
 
 
 class RelevanceScorer:
-    """Score and rank graph nodes by relevance for coaching context."""
 
     def __init__(self, graph: "MemoryGraph"):
         self._graph = graph
