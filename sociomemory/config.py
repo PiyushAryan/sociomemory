@@ -6,34 +6,39 @@ from pathlib import Path
 
 @dataclass
 class SociomemoryConfig:
-    # --- Neo4j ---
-    neo4j_uri: str = "bolt://localhost:7687"   # AuraDB: "neo4j+s://xxxx.databases.neo4j.io"
+    neo4j_uri: str = "bolt://localhost:7687"
     neo4j_user: str = "neo4j"
     neo4j_password: str = "password"
-    neo4j_database: str = "neo4j"             # AuraDB always uses "neo4j"
+    neo4j_database: str = "neo4j"
 
-    # --- LLM backend ---
-    llm_backend: str = "gemini"          # "gemini" | "openai" | "local"
+    llm_backend: str = "gemini"
     llm_api_key: str = ""
-    llm_model: str = ""                  # default per backend if empty
-    llm_embedding_model: str = ""        # default per backend if empty
+    llm_model: str = ""
+    llm_embedding_model: str = ""
 
-    # --- FAISS + SQLite ---
     data_dir: Path = field(default_factory=lambda: Path.home() / ".sociomemory")
 
-    # --- Behaviour ---
-    offline_only: bool = False           # never call external APIs
-    country: str = "IN"                  # India-first defaults
-    embedding_dim: int = 768             # must match LLM embedder
+    offline_only: bool = False
+    enforce_consent: bool = False
+    country: str = "IN"
+    embedding_dim: int = 768
 
-    # --- Enrichment ---
     exa_api_key: str = ""
     enrichment_cache_ttl_hours: int = 24
 
     def __post_init__(self) -> None:
         self.data_dir = Path(self.data_dir)
-        self.data_dir.mkdir(parents=True, exist_ok=True)
-        (self.data_dir / "faiss").mkdir(exist_ok=True)
+        self.llm_backend = self.llm_backend.lower()
+        allowed_backends = {"gemini", "openai", "openrouter", "ollama", "local", "none"}
+        if self.llm_backend not in allowed_backends:
+            raise ValueError(f"Unsupported llm_backend: {self.llm_backend}")
+        if self.embedding_dim <= 0:
+            raise ValueError("embedding_dim must be positive")
+        if self.enrichment_cache_ttl_hours <= 0:
+            raise ValueError("enrichment_cache_ttl_hours must be positive")
+        if len(self.country) != 2 or not self.country.isalpha():
+            raise ValueError("country must be a two-letter country code")
+        self.country = self.country.upper()
 
     @property
     def faiss_dir(self) -> Path:

@@ -11,7 +11,10 @@ logger = logging.getLogger(__name__)
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 INDIA_CITIES_PATH = DATA_DIR / "india_cities.json"
-DEFAULT_S2_LEVELS = (10, 12, 14)
+# H3 resolutions: coarse district (~5 km²), neighborhood (~0.1 km²), fine block (~0.002 km²).
+DEFAULT_H3_RESOLUTIONS = (7, 9, 11)
+# Hard radius for every geo/location feature: only consider points within 5 km.
+DEFAULT_RADIUS_KM = 5.0
 
 
 @dataclass(frozen=True)
@@ -29,17 +32,18 @@ class LocationMatch:
 
 
 @dataclass(frozen=True)
-class S2CellIndex:
+class H3CellIndex:
     cells: dict[str, str]
-    source: str = "s2sphere"
+    source: str = "h3"
 
 
 class OfflineGeoResolver:
-
     provider_name = "offline_geo_resolver"
     requires_network = False
 
-    def __init__(self, data_path: Path = INDIA_CITIES_PATH, max_distance_km: float = 75.0) -> None:
+    def __init__(
+        self, data_path: Path = INDIA_CITIES_PATH, max_distance_km: float = DEFAULT_RADIUS_KM
+    ) -> None:
         self._data_path = data_path
         self._max_distance_km = max_distance_km
         self._rows = self._load_rows(data_path)
@@ -98,8 +102,8 @@ class OfflineGeoResolver:
 
     def _build_geodataframe(self, rows: list[dict[str, Any]]):
         try:
-            import geopandas as gpd  # type: ignore
-            from shapely.geometry import Point  # type: ignore
+            import geopandas as gpd
+            from shapely.geometry import Point
         except ImportError:
             return None
 
@@ -115,38 +119,42 @@ class OfflineGeoResolver:
         return gpd.GeoDataFrame(valid_rows, geometry=points, crs="EPSG:4326")
 
 
-class S2CellIndexer:
-
-    provider_name = "s2_cell_indexer"
+class H3CellIndexer:
+    provider_name = "h3_cell_indexer"
     requires_network = False
 
-    def __init__(self, levels: tuple[int, ...] = DEFAULT_S2_LEVELS, s2_module: Any | None = None) -> None:
-        self._levels = levels
-        self._s2 = s2_module
+    def __init__(
+        self, resolutions: tuple[int, ...] = DEFAULT_H3_RESOLUTIONS, h3_module: Any | None = None
+    ) -> None:
+        self._resolutions = resolutions
+        self._h3 = h3_module
 
-    def index(self, lat: float, lng: float) -> S2CellIndex | None:
-        s2 = self._s2 or _load_s2sphere()
-        if s2 is None:
+    def index(self, lat: float, lng: float) -> H3CellIndex | None:
+        h3 = self._h3 or _load_h3()
+        if h3 is None:
             return None
 
-        lat_lng = s2.LatLng.from_degrees(lat, lng)
-        cells = {}
-        for level in self._levels:
-            cell = s2.CellId.from_lat_lng(lat_lng).parent(level)
-            cells[f"level_{level}"] = cell.to_token()
-        return S2CellIndex(cells=cells)
+        # h3 v4: latlng_to_cell; v3 fallback: geo_to_h3.
+        to_cell = getattr(h3, "latlng_to_cell", None) or getattr(h3, "geo_to_h3", None)
+        if to_cell is None:
+            return None
+
+        cells = {f"res_{res}": to_cell(lat, lng, res) for res in self._resolutions}
+        return H3CellIndex(cells=cells)
 
 
-def s2_cell_index(lat: float, lng: float, levels: tuple[int, ...] = DEFAULT_S2_LEVELS) -> S2CellIndex | None:
-    return S2CellIndexer(levels=levels).index(lat, lng)
+def h3_cell_index(
+    lat: float, lng: float, resolutions: tuple[int, ...] = DEFAULT_H3_RESOLUTIONS
+) -> H3CellIndex | None:
+    return H3CellIndexer(resolutions=resolutions).index(lat, lng)
 
 
-def _load_s2sphere():
+def _load_h3():
     try:
-        import s2sphere  # type: ignore
+        import h3
     except ImportError:
         return None
-    return s2sphere
+    return h3
 
 
 def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:

@@ -8,7 +8,6 @@ logger = logging.getLogger(__name__)
 
 
 class OllamaLLM:
-
     def __init__(
         self,
         base_url: str = "http://localhost:11434",

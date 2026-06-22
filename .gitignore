@@ -8,16 +8,16 @@ dist/
 build/
 *.egg-info/
 .pytest_cache/
+.coverage
 .ruff_cache/
-uv.lock
 *.faiss
 *.map.json
+*.bm25.json
 ~/.sociomemory/
 .env
 .env.local
 *.db
 .DS_Store
-/docs/
 *.log
 *.bak
 *.tmp
@@ -26,6 +26,7 @@ uv.lock
 .idea/
 .vscode/
 .claude/
+/docs/
 # not part of the pip package
 sociomemory/dashboard/
 tests/test_dashboard_export.py

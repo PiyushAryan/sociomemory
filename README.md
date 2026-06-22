@@ -44,10 +44,10 @@ sociomemory is India-first. It ships with bundled data for Indian cities, neighb
 │   ┌────────────────────────────────────────────────────────┐    │
 │   │                   MemoryGraph                          │    │
 │   │                                                        │    │
-│   │   Neo4j (brain)        FAISS (vector search)           │    │
+│   │   Neo4j (brain)        Hybrid recall                   │    │
 │   │   ┌──────────────┐     ┌────────────────────┐          │    │
-│   │   │ Nodes/Edges  │     │  Embeddings index  │          │    │
-│   │   │ LIVES_IN     │     │  per child         │          │    │
+│   │   │ Nodes/Edges  │     │  FAISS embeddings  │          │    │
+│   │   │ LIVES_IN     │     │  BM25 keyword idx  │          │    │
 │   │   │ DERIVES      │     └────────────────────┘          │    │
 │   │   │ UPDATES      │                                     │    │
 │   │   │ IMPLIES      │     SQLite (cache + consent)        │    │
@@ -145,11 +145,14 @@ Therapy opportunities are surfaced automatically from these patterns — e.g. co
 ### Install
 
 ```bash
-# Core (offline-capable)
+# Core: Neo4j + BM25 keyword recall
 pip install sociomemory
 
-# With Exa.ai online enrichment
-pip install "sociomemory[online]"
+# FAISS vector recall and Gemini
+pip install "sociomemory[vector,gemini]"
+
+# Every optional backend and provider
+pip install "sociomemory[all]"
 ```
 
 ### Connect to Neo4j AuraDB Free
@@ -218,7 +221,7 @@ async with Sociomemory(config) as sm:
 
 ## Configuration reference
 
-`SociomemoryConfig` is a plain Python dataclass — no environment variables required (though `.env` files work via `python-dotenv`).
+`SociomemoryConfig` is a plain Python dataclass; pass credentials explicitly or load them through your application's configuration layer.
 
 ```python
 from sociomemory import SociomemoryConfig
@@ -242,6 +245,7 @@ config = SociomemoryConfig(
 
     # Behaviour
     offline_only=False,                      # True = never call any external API
+    enforce_consent=True,                    # reject sensitive operations without consent
     country="IN",                            # India-first defaults
     embedding_dim=768,                       # must match your LLM's embedding output
 
@@ -359,14 +363,19 @@ async with Sociomemory(config) as sm:
         pass
 ```
 
+Set `enforce_consent=True` to make missing consent fail closed during location, school, employer, visit, religious, and income operations. The default remains `False` for compatibility with existing installations.
+
 Available `ConsentScope` values: `LOCATION_AREA`, `LOCATION_EXACT`, `INCOME_INFERENCE`, `SCHOOL_DATA`, `RELIGIOUS_CONTEXT`, `BEHAVIORAL_PROFILING`, `EMPLOYER_DATA`, `EXPORT`.
 
 ### GDPR erasure
 
 ```python
 async with Sociomemory(config) as sm:
-    # Deletes all Neo4j nodes/edges, FAISS index, and consent records for the child
+    # Deletes Neo4j data, FAISS/BM25 indexes, cached in-memory indexes, and consent
     await sm.privacy.erase("child_001")
+
+    sm.privacy.record_consent("child_002", "parent_A", ConsentScope.EXPORT)
+    exported = await sm.privacy.export_data("child_002")
 ```
 
 ---
@@ -579,6 +588,7 @@ sociomemory/
 ├── storage/
 │   ├── neo4j_backend.py Neo4jBackend  (async driver wrapper)
 │   ├── vector.py        FaissIndex  (per-child in-process FAISS index)
+│   ├── keyword.py       BM25Index  (per-child lexical keyword index)
 │   └── cache.py         SQLiteCache  (enrichment result cache + TTL)
 ├── llm/
 │   ├── base.py          BaseLLM  (protocol)

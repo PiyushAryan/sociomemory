@@ -3,13 +3,12 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from neo4j import AsyncGraphDatabase, AsyncDriver
+from neo4j import AsyncDriver, AsyncGraphDatabase
 
 logger = logging.getLogger(__name__)
 
 
 class Neo4jBackend:
-
     SCHEMA_QUERIES = [
         "CREATE CONSTRAINT node_id_unique IF NOT EXISTS FOR (n:SocioNode) REQUIRE n.id IS UNIQUE",
         "CREATE INDEX node_child_id IF NOT EXISTS FOR (n:SocioNode) ON (n.child_id)",

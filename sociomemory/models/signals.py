@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
-from typing import Any, Optional
+from enum import StrEnum
+from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from sociomemory.time import ensure_utc, utc_now
 
 
-class SignalType(str, Enum):
+class SignalType(StrEnum):
     LOCATION = "location"
     SCHOOL = "school"
     PARENT_PROFESSION = "profession"
@@ -24,7 +26,7 @@ class SignalType(str, Enum):
     GENERIC = "generic"
 
 
-class SignalSource(str, Enum):
+class SignalSource(StrEnum):
     CONVERSATION = "conversation"
     PARENT_FORM = "parent_form"
     PROFILE = "profile"
@@ -37,13 +39,14 @@ class Signal(BaseModel):
     extracted_value: str
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
     source: SignalSource = SignalSource.CONVERSATION
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=utc_now)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
-    # For visit signals
-    place_name: Optional[str] = None
-    place_type: Optional[str] = None
-    place_subtype: Optional[str] = None
-    event_date: Optional[datetime] = None
-    mood: Optional[str] = None
-    sensory_notes: Optional[str] = None
+    place_name: str | None = None
+    place_type: str | None = None
+    place_subtype: str | None = None
+    event_date: datetime | None = None
+    mood: str | None = None
+    sensory_notes: str | None = None
+
+    _normalize_datetimes = field_validator("timestamp", "event_date")(ensure_utc)

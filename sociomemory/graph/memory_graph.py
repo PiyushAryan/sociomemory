@@ -4,20 +4,21 @@ import logging
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sociomemory.graph.nodes import Node, NodeType, DataLevel
-from sociomemory.graph.edges import Edge, EdgeType
 from sociomemory.graph import cypher as Q
+from sociomemory.graph.edges import Edge, EdgeType
+from sociomemory.graph.nodes import DataLevel, Node, NodeType
+from sociomemory.time import utc_now
 
 if TYPE_CHECKING:
-    from sociomemory.storage.neo4j_backend import Neo4jBackend
-    from sociomemory.storage.vector import FaissIndex
     from sociomemory.llm.base import BaseLLM
+    from sociomemory.storage.keyword import BM25Index
+    from sociomemory.storage.neo4j_backend import Neo4jBackend
+    from sociomemory.storage.vector import VectorIndex
 
 logger = logging.getLogger(__name__)
 
 
 class Subgraph:
-
     def __init__(self, nodes: list[Node], edges: list[dict]):
         self.nodes = nodes
         self.edges = edges
@@ -39,23 +40,20 @@ class Subgraph:
 
 
 class MemoryGraph:
-
     def __init__(
         self,
         child_id: str,
-        neo4j: "Neo4jBackend",
-        faiss: "FaissIndex",
-        embedder: "BaseLLM | None" = None,
+        neo4j: Neo4jBackend,
+        faiss: VectorIndex,
+        keyword: BM25Index | None = None,
+        embedder: BaseLLM | None = None,
     ):
         self.child_id = child_id
         self._neo4j = neo4j
         self._faiss = faiss
-        self._embedder = embedder  # optional: embeds nodes into FAISS on write
-        self._child_node_id: str | None = None  # cached after first use
-
-    # ------------------------------------------------------------------
-    # Mutation
-    # ------------------------------------------------------------------
+        self._keyword = keyword
+        self._embedder = embedder
+        self._child_node_id: str | None = None
 
     async def add_node(
         self,
@@ -74,12 +72,12 @@ class MemoryGraph:
             properties=properties,
             confidence=confidence,
             sensitivity=sensitivity,
-            document_date=document_date or datetime.utcnow(),
+            document_date=document_date or utc_now(),
             event_date=event_date,
             source_chunk=source_chunk,
         )
         props = node.to_neo4j_props()
-        now = datetime.utcnow().isoformat()
+        now = utc_now().isoformat()
         await self._neo4j.run_write(
             Q.MERGE_NODE,
             id=node.id,
@@ -91,7 +89,23 @@ class MemoryGraph:
         if embedding is not None:
             self._faiss.add(node.id, embedding)
             self._faiss.save()
+        self._index_keywords([node])
         return node
+
+    async def update_node_properties(
+        self,
+        node_id: str,
+        node_type: NodeType,
+        properties: dict[str, Any],
+    ) -> None:
+        await self._neo4j.run_write(
+            Q.MERGE_NODE,
+            id=node_id,
+            child_id=self.child_id,
+            node_type=node_type.value,
+            props=properties,
+            now=utc_now().isoformat(),
+        )
 
     async def add_edge(
         self,
@@ -118,28 +132,43 @@ class MemoryGraph:
             target_id=target_id,
             weight=weight,
             props=props,
-            now=datetime.utcnow().isoformat(),
+            now=utc_now().isoformat(),
         )
         return edge
 
     async def merge_subgraph(self, nodes: list[Node], edges: list[Edge]) -> None:
         queries: list[tuple[str, dict]] = []
-        now = datetime.utcnow().isoformat()
+        now = utc_now().isoformat()
         for node in nodes:
             props = node.to_neo4j_props()
-            queries.append((
-                Q.MERGE_NODE,
-                {"id": node.id, "child_id": self.child_id,
-                 "node_type": node.type.value, "props": props, "now": now},
-            ))
+            queries.append(
+                (
+                    Q.MERGE_NODE,
+                    {
+                        "id": node.id,
+                        "child_id": self.child_id,
+                        "node_type": node.type.value,
+                        "props": props,
+                        "now": now,
+                    },
+                )
+            )
         for edge in edges:
             props = edge.to_neo4j_props()
-            queries.append((
-                Q.build_merge_edge(edge.type.value),
-                {"source_id": edge.source_id, "target_id": edge.target_id,
-                 "weight": edge.weight, "props": props, "now": now},
-            ))
+            queries.append(
+                (
+                    Q.build_merge_edge(edge.type.value),
+                    {
+                        "source_id": edge.source_id,
+                        "target_id": edge.target_id,
+                        "weight": edge.weight,
+                        "props": props,
+                        "now": now,
+                    },
+                )
+            )
         await self._neo4j.run_in_transaction(queries)
+        self._index_keywords(nodes)
         await self._index_embeddings(nodes)
 
     @staticmethod
@@ -155,7 +184,9 @@ class MemoryGraph:
             for k, v in node.properties.items()
             if k not in {"name", "title", "value"} and isinstance(v, (str, int, float, bool))
         )
-        return " ".join(part for part in (node.type.value, label, detail, node.source_chunk or "") if part).strip()
+        return " ".join(
+            part for part in (node.type.value, label, detail, node.source_chunk or "") if part
+        ).strip()
 
     async def _index_embeddings(self, nodes: list[Node]) -> None:
         if not self._embedder or not nodes:
@@ -179,9 +210,18 @@ class MemoryGraph:
         if indexed:
             self._faiss.save()
 
-    # ------------------------------------------------------------------
-    # Traversal
-    # ------------------------------------------------------------------
+    def _index_keywords(self, nodes: list[Node]) -> None:
+        if not self._keyword or not nodes:
+            return
+        indexed = False
+        for node in nodes:
+            text = self._node_text(node)
+            if not text:
+                continue
+            self._keyword.add(node.id, text)
+            indexed = True
+        if indexed:
+            self._keyword.save()
 
     async def traverse(
         self,
@@ -192,9 +232,7 @@ class MemoryGraph:
         limit: int = 50,
     ) -> Subgraph:
         if edge_types:
-            cypher = Q.build_traverse_with_types(
-                [e.value for e in edge_types], max_depth
-            )
+            cypher = Q.build_traverse_with_types([e.value for e in edge_types], max_depth)
         else:
             cypher = Q.build_traverse(max_depth)
         records = await self._neo4j.run(
@@ -225,9 +263,7 @@ class MemoryGraph:
         nodes = [self._parse_node(r["neighbor"]) for r in records if r.get("neighbor")]
         return Subgraph(nodes=nodes, edges=[])
 
-    async def find_inference_chain(
-        self, from_type: NodeType, to_type: NodeType
-    ) -> list[dict]:
+    async def find_inference_chain(self, from_type: NodeType, to_type: NodeType) -> list[dict]:
         records = await self._neo4j.run(
             Q.FIND_INFERENCE_CHAIN,
             child_id=self.child_id,
@@ -237,9 +273,7 @@ class MemoryGraph:
         return records
 
     async def find_contradictions(self) -> list[tuple[Node, Node, float]]:
-        records = await self._neo4j.run(
-            Q.FIND_CONTRADICTIONS, child_id=self.child_id
-        )
+        records = await self._neo4j.run(Q.FIND_CONTRADICTIONS, child_id=self.child_id)
         result = []
         for r in records:
             a = self._parse_node(r["a"]) if r.get("a") else None
@@ -262,9 +296,9 @@ class MemoryGraph:
             return self._parse_node(records[0]["n"])
         return None
 
-    # ------------------------------------------------------------------
-    # Subgraph extraction
-    # ------------------------------------------------------------------
+    async def get_all_nodes(self) -> list[Node]:
+        records = await self._neo4j.run(Q.GET_ALL_NODES, child_id=self.child_id)
+        return [self._parse_node(record["n"]) for record in records if record.get("n")]
 
     async def extract_coaching_subgraph(self) -> Subgraph:
         child_id = await self._get_child_node_id()
@@ -277,15 +311,27 @@ class MemoryGraph:
         )
         return self._parse_path_records(records)
 
-    async def extract_context_subgraph(self, query_embedding) -> Subgraph:
-        candidates = self._faiss.search(query_embedding, top_k=10)
+    async def extract_context_subgraph(
+        self, query_embedding=None, query_text: str | None = None
+    ) -> Subgraph:
+        candidates: list[tuple[str, float]] = []
+        if query_embedding is not None:
+            candidates.extend(self._faiss.search(query_embedding, top_k=10))
+        if query_text and self._keyword:
+            candidates.extend(self._keyword.search(query_text, top_k=10))
         if not candidates:
             return Subgraph(nodes=[], edges=[])
         nodes = []
-        for node_id, score in candidates:
+        seen_candidates = set()
+        for node_id, score in sorted(candidates, key=lambda item: item[1], reverse=True):
+            if node_id in seen_candidates:
+                continue
+            seen_candidates.add(node_id)
+            seed = await self.get_node(node_id)
+            if seed:
+                nodes.append(seed)
             subgraph = await self.get_neighborhood(node_id, radius=1)
             nodes.extend(subgraph.nodes)
-        # Deduplicate
         seen = set()
         unique_nodes = []
         for n in nodes:
@@ -294,34 +340,25 @@ class MemoryGraph:
                 unique_nodes.append(n)
         return Subgraph(nodes=unique_nodes, edges=[])
 
-    # ------------------------------------------------------------------
-    # Temporal queries
-    # ------------------------------------------------------------------
-
     async def query_by_event_date(
         self,
         start: datetime,
         end: datetime,
         node_type: NodeType | None = None,
     ) -> list[Node]:
-        cypher = Q.build_event_date_query(
-            node_type.value if node_type else None
-        )
+        cypher = Q.build_event_date_query(node_type.value if node_type else None)
         records = await self._neo4j.run(
             cypher,
             child_id=self.child_id,
             start=start.isoformat(),
             end=end.isoformat(),
+            node_type=node_type.value if node_type else None,
         )
         return [self._parse_node(r["n"]) for r in records if r.get("n")]
 
     async def get_timeline(self) -> list[Node]:
         records = await self._neo4j.run(Q.GET_TIMELINE, child_id=self.child_id)
         return [self._parse_node(r["n"]) for r in records if r.get("n")]
-
-    # ------------------------------------------------------------------
-    # Provenance
-    # ------------------------------------------------------------------
 
     async def get_provenance(self, node_id: str) -> list[dict]:
         records = await self._neo4j.run(
@@ -333,35 +370,19 @@ class MemoryGraph:
             return records[0].get("provenance_chain", [])
         return []
 
-    # ------------------------------------------------------------------
-    # Versioning
-    # ------------------------------------------------------------------
-
     async def mark_stale(self, node_id: str) -> int:
-        records = await self._neo4j.run_write(
-            Q.MARK_STALE_CASCADE, node_id=node_id
-        )
+        records = await self._neo4j.run_write(Q.MARK_STALE_CASCADE, node_id=node_id)
         return records[0].get("marked_count", 0) if records else 0
 
     async def get_stale_nodes(self) -> list[Node]:
-        records = await self._neo4j.run(
-            Q.GET_STALE_NODES, child_id=self.child_id
-        )
+        records = await self._neo4j.run(Q.GET_STALE_NODES, child_id=self.child_id)
         return [self._parse_node(r["n"]) for r in records if r.get("n")]
-
-    # ------------------------------------------------------------------
-    # Confidence / convergence
-    # ------------------------------------------------------------------
 
     async def compute_convergence(self, node_id: str) -> float:
         records = await self._neo4j.run(Q.COMPUTE_CONVERGENCE, node_id=node_id)
         if records:
             return float(records[0].get("convergence_count", 0))
         return 0.0
-
-    # ------------------------------------------------------------------
-    # Stats
-    # ------------------------------------------------------------------
 
     async def node_count(self) -> int:
         records = await self._neo4j.run(Q.NODE_COUNT, child_id=self.child_id)
@@ -381,11 +402,8 @@ class MemoryGraph:
             "edges": ec,
             "stale_nodes": len(stale),
             "faiss_vectors": self._faiss.size,
+            "bm25_docs": self._keyword.size if self._keyword else 0,
         }
-
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
 
     async def _get_child_node_id(self) -> str | None:
         if self._child_node_id:
@@ -394,6 +412,11 @@ class MemoryGraph:
         if nodes:
             self._child_node_id = nodes[0].id
         return self._child_node_id
+
+    def delete_local_indexes(self) -> None:
+        self._faiss.delete()
+        if self._keyword:
+            self._keyword.delete()
 
     def _parse_node(self, record: Any) -> Node:
         if hasattr(record, "_properties"):

@@ -1,13 +1,13 @@
 from __future__ import annotations
 
+import pytest
+
 from sociomemory.graph import cypher as Q
 
 
 def test_static_cypher_queries_do_not_emit_escaped_map_braces():
     queries = [
-        value
-        for name, value in vars(Q).items()
-        if name.isupper() and isinstance(value, str)
+        value for name, value in vars(Q).items() if name.isupper() and isinstance(value, str)
     ]
 
     assert all("{{" not in query and "}}" not in query for query in queries)
@@ -15,9 +15,7 @@ def test_static_cypher_queries_do_not_emit_escaped_map_braces():
 
 def test_static_cypher_queries_avoid_direct_relationship_weight_reads():
     queries = [
-        value
-        for name, value in vars(Q).items()
-        if name.isupper() and isinstance(value, str)
+        value for name, value in vars(Q).items() if name.isupper() and isinstance(value, str)
     ]
 
     assert all(".weight" not in query for query in queries)
@@ -35,5 +33,14 @@ def test_builder_queries_preserve_cypher_maps_without_double_braces():
     assert "MATCH path = (start:SocioNode {id: $start_id})" in traverse
     assert "{{" not in temporal and "}}" not in temporal
     assert "MATCH (n:SocioNode {child_id: $child_id})" in temporal
-    assert "AND n.node_type = 'Visit'" in temporal
+    assert "AND ($node_type IS NULL OR n.node_type = $node_type)" in temporal
     assert ".weight" not in traverse
+
+
+def test_dynamic_cypher_rejects_invalid_relationships_and_depths():
+    with pytest.raises(ValueError):
+        Q.build_merge_edge("LIVES_IN]->(x) DETACH DELETE x")
+    with pytest.raises(ValueError):
+        Q.build_traverse(0)
+    with pytest.raises(ValueError):
+        Q.build_neighborhood(11)

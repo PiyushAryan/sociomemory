@@ -9,7 +9,6 @@ DEFAULT_OPENAI_EMBED_MODEL = "text-embedding-3-small"  # 1536-dim
 
 
 class OpenAILLM:
-
     def __init__(
         self,
         api_key: str,
@@ -25,6 +24,7 @@ class OpenAILLM:
         if self._client is None:
             try:
                 from openai import AsyncOpenAI
+
                 self._client = AsyncOpenAI(api_key=self._api_key)
             except ImportError:
                 raise ImportError("openai is required: pip install openai")

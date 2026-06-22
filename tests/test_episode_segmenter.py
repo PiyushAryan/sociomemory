@@ -53,11 +53,15 @@ def test_episode_schema_primitives_exist():
 
 @pytest.mark.asyncio
 async def test_segmenter_groups_nearby_events_into_episode():
-    graph = FakeGraph([
-        event("visit-1", "2026-01-01T10:00:00", place_type="temple", confidence=0.7),
-        event("visit-2", "2026-01-05T10:00:00", place_type="temple", confidence=0.9),
-        event("signal-1", "2026-01-07T10:00:00", node_type=NodeType.SIGNAL, signal_type="outing"),
-    ])
+    graph = FakeGraph(
+        [
+            event("visit-1", "2026-01-01T10:00:00", place_type="temple", confidence=0.7),
+            event("visit-2", "2026-01-05T10:00:00", place_type="temple", confidence=0.9),
+            event(
+                "signal-1", "2026-01-07T10:00:00", node_type=NodeType.SIGNAL, signal_type="outing"
+            ),
+        ]
+    )
 
     report = await EpisodeSegmenter(graph).segment()
 
@@ -78,11 +82,15 @@ async def test_segmenter_groups_nearby_events_into_episode():
 
 @pytest.mark.asyncio
 async def test_segmenter_splits_far_apart_events_and_links_episodes():
-    graph = FakeGraph([
-        event("visit-1", "2026-01-01T10:00:00", place_type="park"),
-        event("visit-2", "2026-01-10T10:00:00", place_type="park"),
-        event("visit-3", "2026-03-01T10:00:00", place_type="mall", sensitivity=DataLevel.PERSONAL),
-    ])
+    graph = FakeGraph(
+        [
+            event("visit-1", "2026-01-01T10:00:00", place_type="park"),
+            event("visit-2", "2026-01-10T10:00:00", place_type="park"),
+            event(
+                "visit-3", "2026-03-01T10:00:00", place_type="mall", sensitivity=DataLevel.PERSONAL
+            ),
+        ]
+    )
 
     report = await EpisodeSegmenter(graph).segment()
 

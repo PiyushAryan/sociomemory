@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock
 
 from sociomemory.engine.income import IncomeEstimator, _bracket_from_monthly
 from sociomemory.graph.memory_graph import MemoryGraph
@@ -36,9 +37,11 @@ def test_bracket_from_monthly():
 
 @pytest.mark.asyncio
 async def test_income_from_rent():
-    graph = make_graph_with_nodes({
-        NodeType.REAL_ESTATE: [make_node(NodeType.REAL_ESTATE, avg_rent_2bhk=35000)],
-    })
+    graph = make_graph_with_nodes(
+        {
+            NodeType.REAL_ESTATE: [make_node(NodeType.REAL_ESTATE, avg_rent_2bhk=35000)],
+        }
+    )
     estimator = IncomeEstimator(graph)
     result = await estimator.estimate()
     assert result is not None
@@ -49,9 +52,11 @@ async def test_income_from_rent():
 
 @pytest.mark.asyncio
 async def test_income_from_school_fee():
-    graph = make_graph_with_nodes({
-        NodeType.SCHOOL: [make_node(NodeType.SCHOOL, fee_yearly=200000)],
-    })
+    graph = make_graph_with_nodes(
+        {
+            NodeType.SCHOOL: [make_node(NodeType.SCHOOL, fee_yearly=200000)],
+        }
+    )
     estimator = IncomeEstimator(graph)
     result = await estimator.estimate()
     assert result is not None
@@ -60,11 +65,13 @@ async def test_income_from_school_fee():
 
 @pytest.mark.asyncio
 async def test_income_convergence_boost():
-    graph = make_graph_with_nodes({
-        NodeType.REAL_ESTATE: [make_node(NodeType.REAL_ESTATE, avg_rent_2bhk=35000)],
-        NodeType.SCHOOL: [make_node(NodeType.SCHOOL, fee_yearly=200000)],
-        NodeType.EMPLOYER: [make_node(NodeType.EMPLOYER, name="infosys", industry="IT")],
-    })
+    graph = make_graph_with_nodes(
+        {
+            NodeType.REAL_ESTATE: [make_node(NodeType.REAL_ESTATE, avg_rent_2bhk=35000)],
+            NodeType.SCHOOL: [make_node(NodeType.SCHOOL, fee_yearly=200000)],
+            NodeType.EMPLOYER: [make_node(NodeType.EMPLOYER, name="infosys", industry="IT")],
+        }
+    )
     estimator = IncomeEstimator(graph)
     result = await estimator.estimate()
     assert result is not None

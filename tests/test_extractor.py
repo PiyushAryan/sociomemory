@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from sociomemory.pipeline.extractor import SignalExtractor
 from sociomemory.models.signals import SignalType
+from sociomemory.pipeline.extractor import SignalExtractor
 
 
 @pytest.mark.asyncio

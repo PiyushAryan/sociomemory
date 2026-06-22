@@ -18,7 +18,6 @@ logger = logging.getLogger(__name__)
 
 
 class ExaLocationProvider:
-
     provider_name = "exa_location"
     requires_network = True
 
@@ -56,40 +55,45 @@ Search results:
 
 JSON:"""
 
-    def __init__(self, api_key: str, llm: "BaseLLM", cache: "SQLiteCache"):
+    def __init__(
+        self,
+        api_key: str,
+        llm: BaseLLM,
+        cache: SQLiteCache,
+        cache_ttl_hours: int = 24,
+    ):
         self._api_key = api_key
         self._llm = llm
         self._cache = cache
+        self._cache_ttl_hours = cache_ttl_hours
         self._exa = None
 
     def _get_exa(self):
         if self._exa is None:
             try:
-                from exa_py import Exa  # type: ignore
+                from exa_py import Exa
+
                 self._exa = Exa(api_key=self._api_key)
             except ImportError:
                 raise ImportError("exa-py is required: pip install exa-py")
         return self._exa
 
-    async def enrich(self, signal: Signal, graph: "MemoryGraph") -> tuple[list[Node], list[Edge]]:
+    async def enrich(self, signal: Signal, graph: MemoryGraph) -> tuple[list[Node], list[Edge]]:
         if signal.signal_type != SignalType.LOCATION:
             return [], []
 
         location = signal.extracted_value.strip()
         cache_key = f"exa_location:{location.lower()}"
 
-        # Check cache first
         cached = self._cache.get(cache_key)
         if cached:
             logger.debug("Exa cache hit for %s", location)
             return await self._build_from_data(cached, location, signal, graph)
 
-        # Fetch from Exa
         content = await self._fetch_exa_content(location)
         if not content:
             return [], []
 
-        # LLM extract structured data
         prompt = self.EXTRACT_PROMPT.format(location=location, content=content[:4000])
         try:
             raw = await self._llm.complete(prompt, temperature=0.1)
@@ -99,8 +103,12 @@ JSON:"""
             logger.error("Exa LLM extraction failed for %s: %s", location, exc)
             return [], []
 
-        # Cache for 24h
-        self._cache.set(cache_key, data, provider="exa", ttl_hours=24)
+        self._cache.set(
+            cache_key,
+            data,
+            provider="exa",
+            ttl_hours=self._cache_ttl_hours,
+        )
 
         return await self._build_from_data(data, location, signal, graph)
 
@@ -128,14 +136,12 @@ JSON:"""
         data: dict,
         location: str,
         signal: Signal,
-        graph: "MemoryGraph",
+        graph: MemoryGraph,
     ) -> tuple[list[Node], list[Edge]]:
         builder = GraphBuilder(graph)
         nodes: list[Node] = []
         edges: list[Edge] = []
 
-        # Get child and neighborhood nodes
-        from sociomemory.graph.nodes import NodeType
         child_nodes = await graph.get_nodes_by_type(NodeType.CHILD)
         hood_nodes = await graph.get_nodes_by_type(NodeType.NEIGHBORHOOD)
 
@@ -145,7 +151,6 @@ JSON:"""
         child_id = child_nodes[0].id
         hood_id = hood_nodes[0].id if hood_nodes else child_id
 
-        # Build/update location node if area_type available
         if data.get("area_type") or data.get("avg_rent_2bhk"):
             econ_nodes, econ_edges = builder.build_economic(
                 neighborhood_node_id=hood_id,
@@ -157,7 +162,6 @@ JSON:"""
             nodes.extend(econ_nodes)
             edges.extend(econ_edges)
 
-        # Cultural context
         if data.get("primary_language"):
             cult_nodes, cult_edges = builder.build_cultural(
                 neighborhood_node_id=hood_id,
@@ -167,7 +171,6 @@ JSON:"""
             nodes.extend(cult_nodes)
             edges.extend(cult_edges)
 
-        # Safety context
         if data.get("aqi_avg") or data.get("child_safety_score"):
             safety_nodes, safety_edges = builder.build_safety(
                 neighborhood_node_id=hood_id,
@@ -177,7 +180,6 @@ JSON:"""
             nodes.extend(safety_nodes)
             edges.extend(safety_edges)
 
-        # Transport
         if data.get("connectivity_score"):
             transport_nodes, transport_edges = builder.build_transport(
                 neighborhood_node_id=hood_id,
@@ -186,10 +188,14 @@ JSON:"""
             nodes.extend(transport_nodes)
             edges.extend(transport_edges)
 
-        # Civic node (new: political climate, NGO density, civic quality)
         civic_props: dict[str, Any] = {}
-        for key in ("political_climate", "strike_frequency", "public_services_quality",
-                    "ngo_density", "civic_notes"):
+        for key in (
+            "political_climate",
+            "strike_frequency",
+            "public_services_quality",
+            "ngo_density",
+            "civic_notes",
+        ):
             if data.get(key) is not None:
                 civic_props[key] = data[key]
 
@@ -203,14 +209,15 @@ JSON:"""
                 source_chunk=signal.raw_text,
             )
             nodes.append(civic_node)
-            edges.append(Edge(
-                source_id=hood_id,
-                target_id=civic_node.id,
-                type=EdgeType.HAS_CONTEXT,
-                weight=0.7,
-            ))
+            edges.append(
+                Edge(
+                    source_id=hood_id,
+                    target_id=civic_node.id,
+                    type=EdgeType.HAS_CONTEXT,
+                    weight=0.7,
+                )
+            )
 
-        # Nearby therapy centers
         therapy_centers = data.get("therapy_centers", [])
         if therapy_centers:
             places = [
@@ -231,7 +238,9 @@ JSON:"""
 
         logger.info(
             "Exa enriched %s: %d nodes, %d edges (civic=%s, therapy_centers=%d)",
-            location, len(nodes), len(edges),
+            location,
+            len(nodes),
+            len(edges),
             civic_props.get("political_climate", "unknown"),
             len(therapy_centers),
         )

@@ -2,63 +2,41 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from enum import Enum
-from typing import Any, Optional
+from enum import StrEnum
+from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from sociomemory.time import ensure_utc, utc_now
 
 
-class EdgeType(str, Enum):
-    # ----------------------------------------------------------------
-    # Relational versioning (supermemory-inspired)
-    # ----------------------------------------------------------------
-    UPDATES = "UPDATES"       # new fact replaces old; old kept with history
-    EXTENDS = "EXTENDS"       # adds detail without contradiction
-    DERIVES = "DERIVES"       # second-order inference from combining nodes
+class EdgeType(StrEnum):
+    UPDATES = "UPDATES"
+    EXTENDS = "EXTENDS"
+    DERIVES = "DERIVES"
 
-    # ----------------------------------------------------------------
-    # Structural
-    # ----------------------------------------------------------------
     LIVES_IN = "LIVES_IN"
     LOCATED_IN = "LOCATED_IN"
     ATTENDS = "ATTENDS"
     PARENT_OF = "PARENT_OF"
     WORKS_AT = "WORKS_AT"
 
-    # ----------------------------------------------------------------
-    # Behavioral (visits, outings, events)
-    # ----------------------------------------------------------------
     VISITED = "VISITED"
     AT = "AT"
     FREQUENTS = "FREQUENTS"
 
-    # ----------------------------------------------------------------
-    # Proximity (weight = 1/distance_km)
-    # ----------------------------------------------------------------
     NEAR_TO = "NEAR_TO"
     ACCESSIBLE_VIA = "ACCESSIBLE_VIA"
 
-    # ----------------------------------------------------------------
-    # Contextual
-    # ----------------------------------------------------------------
     HAS_CONTEXT = "HAS_CONTEXT"
     INDICATES = "INDICATES"
 
-    # ----------------------------------------------------------------
-    # Inference
-    # ----------------------------------------------------------------
     IMPLIES = "IMPLIES"
     SUPPORTS = "SUPPORTS"
     CONTRADICTS = "CONTRADICTS"
 
-    # ----------------------------------------------------------------
-    # Provenance
-    # ----------------------------------------------------------------
     EXTRACTED_FROM = "EXTRACTED_FROM"
 
-    # ----------------------------------------------------------------
-    # Temporal
-    # ----------------------------------------------------------------
     SEASONAL = "SEASONAL"
     PART_OF = "PART_OF"
     FOLLOWS = "FOLLOWS"
@@ -71,8 +49,10 @@ class Edge(BaseModel):
     type: EdgeType
     weight: float = Field(default=1.0, ge=0.0, le=1.0)
     properties: dict[str, Any] = Field(default_factory=dict)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    ttl: Optional[datetime] = None  # edge expires (seasonal edges)
+    created_at: datetime = Field(default_factory=utc_now)
+    ttl: datetime | None = None
+
+    _normalize_datetimes = field_validator("created_at", "ttl")(ensure_utc)
 
     def to_neo4j_props(self) -> dict[str, Any]:
         props: dict[str, Any] = {

@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
+
+from sociomemory.time import utc_now
 
 
 class SQLiteCache:
-
     SCHEMA = """
     CREATE TABLE IF NOT EXISTS cache (
         key TEXT PRIMARY KEY,
@@ -27,15 +28,15 @@ class SQLiteCache:
         self._conn.executescript(self.SCHEMA)
         self._conn.commit()
 
-    def get(self, key: str) -> Optional[Any]:
-        now = datetime.utcnow().isoformat()
+    def get(self, key: str) -> Any | None:
+        now = utc_now().isoformat()
         row = self._conn.execute(
             "SELECT value FROM cache WHERE key = ? AND expires_at > ?", (key, now)
         ).fetchone()
         return json.loads(row[0]) if row else None
 
     def set(self, key: str, value: Any, provider: str, ttl_hours: int = 24) -> None:
-        now = datetime.utcnow()
+        now = utc_now()
         expires = (now + timedelta(hours=ttl_hours)).isoformat()
         self._conn.execute(
             "INSERT OR REPLACE INTO cache (key, value, provider, created_at, expires_at) VALUES (?,?,?,?,?)",
@@ -48,7 +49,7 @@ class SQLiteCache:
         self._conn.commit()
 
     def purge_expired(self) -> int:
-        now = datetime.utcnow().isoformat()
+        now = utc_now().isoformat()
         cursor = self._conn.execute("DELETE FROM cache WHERE expires_at <= ?", (now,))
         self._conn.commit()
         return cursor.rowcount

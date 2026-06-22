@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sociomemory.graph.nodes import Node, NodeType
+from sociomemory.time import utc_now
 
 if TYPE_CHECKING:
     from sociomemory.graph.memory_graph import MemoryGraph
@@ -15,8 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class TemporalEngine:
-
-    def __init__(self, graph: "MemoryGraph"):
+    def __init__(self, graph: MemoryGraph):
         self._graph = graph
 
     async def get_events_in_period(
@@ -25,7 +25,7 @@ class TemporalEngine:
         return await self._graph.query_by_event_date(start, end, node_type)
 
     async def get_last_summer_events(self) -> list[Node]:
-        now = datetime.utcnow()
+        now = utc_now()
         year = now.year - 1
         return await self.get_events_in_period(datetime(year, 6, 1), datetime(year, 8, 31))
 
@@ -44,14 +44,16 @@ class TemporalEngine:
         patterns = []
         for place_type, count in type_counts.most_common():
             if count >= 2:
-                patterns.append({
-                    "pattern": f"Visits {place_type} frequently",
-                    "place_type": place_type,
-                    "visit_count": count,
-                    "frequency": round(count / max(total, 1), 2),
-                    "confidence": min(0.95, 0.3 + 0.3 * math.log1p(count)),
-                    "insight": self._pattern_insight(place_type, count),
-                })
+                patterns.append(
+                    {
+                        "pattern": f"Visits {place_type} frequently",
+                        "place_type": place_type,
+                        "visit_count": count,
+                        "frequency": round(count / max(total, 1), 2),
+                        "confidence": min(0.95, 0.3 + 0.3 * math.log1p(count)),
+                        "insight": self._pattern_insight(place_type, count),
+                    }
+                )
         return patterns
 
     def _pattern_insight(self, place_type: str, count: int) -> str:
@@ -63,14 +65,14 @@ class TemporalEngine:
             "mountain": f"Outdoor-active family ({count} trips). Adventure therapy viable.",
             "beach": f"Water/outdoor comfort ({count} visits). Aquatic therapy possibilities.",
             "park": f"Regular outdoor activity ({count} visits). Gross motor goals compatible.",
-            "water_park": f"Water comfort + crowd tolerance. Aqua/group therapy viable.",
-            "mall": f"Crowd tolerance confirmed. Group therapy settings acceptable.",
+            "water_park": "Water comfort + crowd tolerance. Aqua/group therapy viable.",
+            "mall": "Crowd tolerance confirmed. Group therapy settings acceptable.",
         }
         return INSIGHTS.get(place_type, f"{count} visits to {place_type} noted.")
 
     async def detect_freshness_decay(self, node_ids: list[str]) -> dict[str, float]:
         scores = {}
-        now = datetime.utcnow()
+        now = utc_now()
         for nid in node_ids:
             node = await self._graph.get_node(nid)
             if not node:

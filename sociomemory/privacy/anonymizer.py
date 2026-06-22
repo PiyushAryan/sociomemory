@@ -6,7 +6,6 @@ from typing import Any
 
 
 class Anonymizer:
-
     def __init__(self, salt: str = "sociomemory"):
         self._salt = salt
 
@@ -14,7 +13,9 @@ class Anonymizer:
         digest = hashlib.sha256(f"{self._salt}:{value}".encode()).hexdigest()[:8]
         return f"[anon_{digest}]"
 
-    def sanitize_props(self, props: dict[str, Any], sensitive_keys: list[str] | None = None) -> dict[str, Any]:
+    def sanitize_props(
+        self, props: dict[str, Any], sensitive_keys: list[str] | None = None
+    ) -> dict[str, Any]:
         default_sensitive = {"name", "address", "phone", "email", "id", "aadhaar", "pan"}
         keys_to_redact = set(sensitive_keys or []) | default_sensitive
         return {

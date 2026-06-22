@@ -35,8 +35,7 @@ NODE_RELEVANCE_WEIGHTS: dict[NodeType, float] = {
 
 
 class RelevanceScorer:
-
-    def __init__(self, graph: "MemoryGraph"):
+    def __init__(self, graph: MemoryGraph):
         self._graph = graph
 
     def score_node(self, node: Node) -> float:
@@ -49,7 +48,5 @@ class RelevanceScorer:
         return scored[:top_k]
 
     async def get_top_coaching_nodes(self, top_k: int = 20) -> list[Node]:
-        from sociomemory.graph import cypher as Q
-        records = await self._graph._neo4j.run(Q.GET_ALL_NODES, child_id=self._graph.child_id)
-        nodes = [self._graph._parse_node(r["n"]) for r in records if r.get("n")]
+        nodes = await self._graph.get_all_nodes()
         return self.rank_nodes(nodes, top_k=top_k)

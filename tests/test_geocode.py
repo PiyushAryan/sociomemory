@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from sociomemory.providers.geocode import OfflineGeoResolver, S2CellIndexer
+import pytest
+
+from sociomemory.providers.geocode import H3CellIndexer, OfflineGeoResolver
 
 
 def test_offline_geo_resolver_finds_nearest_bundled_locality():
@@ -37,40 +39,31 @@ def test_offline_geo_resolver_loads_custom_point_file(tmp_path: Path):
     assert match.tier == 3
 
 
-def test_s2_cell_indexer_returns_none_without_s2_module(monkeypatch):
+def test_h3_cell_indexer_returns_none_without_h3_module(monkeypatch):
     import sociomemory.providers.geocode as geocode
 
-    monkeypatch.setattr(geocode, "_load_s2sphere", lambda: None)
+    monkeypatch.setattr(geocode, "_load_h3", lambda: None)
 
-    assert S2CellIndexer().index(12.9352, 77.6245) is None
+    assert H3CellIndexer().index(12.9352, 77.6245) is None
 
 
-def test_s2_cell_indexer_builds_tokens_with_injected_module():
-    class FakeLatLng:
+def test_h3_cell_indexer_builds_cells_with_injected_module():
+    class FakeH3:
         @staticmethod
-        def from_degrees(lat, lng):
-            return (lat, lng)
+        def latlng_to_cell(lat, lng, res):
+            return f"cell-{res}"
 
-    class FakeCell:
-        def __init__(self, level=None):
-            self.level = level
-
-        @staticmethod
-        def from_lat_lng(lat_lng):
-            return FakeCell()
-
-        def parent(self, level):
-            return FakeCell(level=level)
-
-        def to_token(self):
-            return f"cell-{self.level}"
-
-    class FakeS2:
-        LatLng = FakeLatLng
-        CellId = FakeCell
-
-    index = S2CellIndexer(levels=(10, 12), s2_module=FakeS2).index(12.9352, 77.6245)
+    index = H3CellIndexer(resolutions=(7, 9), h3_module=FakeH3).index(12.9352, 77.6245)
 
     assert index is not None
-    assert index.cells == {"level_10": "cell-10", "level_12": "cell-12"}
-    assert index.source == "s2sphere"
+    assert index.cells == {"res_7": "cell-7", "res_9": "cell-9"}
+    assert index.source == "h3"
+
+
+def test_h3_cell_indexer_real_module_produces_stable_cells():
+    pytest.importorskip("h3")
+    index = H3CellIndexer(resolutions=(7, 9, 11)).index(12.9352, 77.6245)
+
+    assert index is not None
+    assert set(index.cells) == {"res_7", "res_9", "res_11"}
+    assert all(isinstance(cell, str) and cell for cell in index.cells.values())

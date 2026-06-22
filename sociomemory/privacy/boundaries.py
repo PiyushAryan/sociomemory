@@ -48,6 +48,9 @@ class DataBoundary:
         node_idx = LEVEL_ORDER.index(node.sensitivity)
         if node_idx > max_idx:
             return None
-        safe_props = {k: v for k, v in node.properties.items()
-                      if k not in ("exact_address", "phone", "id_number")}
+        safe_props = {
+            k: v
+            for k, v in node.properties.items()
+            if k not in ("exact_address", "phone", "id_number")
+        }
         return node.model_copy(update={"properties": safe_props})

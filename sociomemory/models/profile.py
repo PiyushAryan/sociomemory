@@ -1,62 +1,37 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from sociomemory.models.coaching import IncomeEstimate
+from sociomemory.time import ensure_utc, utc_now
 
 
 class SocioProfile(BaseModel):
-
     child_id: str
-
-    # Location
-    area_type: str = "unknown"  # "urban_affluent", "urban_middle", "semi_urban", "rural"
-    neighborhood: Optional[str] = None
-    city: Optional[str] = None
-    state: Optional[str] = None
-
-    # Connectivity
+    area_type: str = "unknown"
+    neighborhood: str | None = None
+    city: str | None = None
+    state: str | None = None
     connectivity_score: float = 0.5
-
-    # Resources nearby
     resource_availability: dict[str, int] = Field(default_factory=dict)
-    # e.g. {"therapy_centers": 3, "parks": 5, "hospitals": 2}
-
-    # Safety
     safety_profile: dict[str, Any] = Field(default_factory=dict)
-    # e.g. {"aqi_avg": 120, "child_safety_score": 0.7, "overall": 0.65}
-
-    # Culture
     cultural_context: dict[str, Any] = Field(default_factory=dict)
-    # e.g. {"primary_language": "Kannada", "cosmopolitan": 0.8}
-
-    # Economy
     economic_tier: str = "unknown"
-    income_estimate: Optional[IncomeEstimate] = None
+    income_estimate: IncomeEstimate | None = None
     real_estate_context: dict[str, Any] = Field(default_factory=dict)
-
-    # School
     school_context: dict[str, Any] = Field(default_factory=dict)
-    # e.g. {"name": "DPS", "board": "CBSE", "fee_tier": "high"}
-
-    # Family
     family_context: dict[str, Any] = Field(default_factory=dict)
-    # e.g. {"parent_profession": "IT", "employer": "Infosys"}
-
-    # Behavioral / identity
     lifestyle_tags: list[str] = Field(default_factory=list)
-    religious_context: Optional[dict[str, Any]] = None
+    religious_context: dict[str, Any] | None = None
     visit_summary: dict[str, int] = Field(default_factory=dict)
-    # e.g. {"temple": 3, "park": 8, "mountain": 1}
-
-    # Meta
     confidence: float = Field(default=0.5, ge=0.0, le=1.0)
-    last_enriched: datetime = Field(default_factory=datetime.utcnow)
+    last_enriched: datetime = Field(default_factory=utc_now)
     graph_stats: dict[str, Any] = Field(default_factory=dict)
-    # e.g. {"nodes": 142, "edges": 287, "gaps": ["school", "profession"]}
+
+    _normalize_datetimes = field_validator("last_enriched")(ensure_utc)
 
     def to_llm_context(self, include_sensitive: bool = False) -> str:
         lines: list[str] = [f"## Social Context for child {self.child_id}"]
@@ -88,7 +63,9 @@ class SocioProfile(BaseModel):
         if self.lifestyle_tags:
             lines.append(f"- Lifestyle: {', '.join(self.lifestyle_tags)}")
         if self.religious_context:
-            lines.append(f"- Religious context: {self.religious_context.get('tradition', 'unknown')}")
+            lines.append(
+                f"- Religious context: {self.religious_context.get('tradition', 'unknown')}"
+            )
         if self.resource_availability:
             tc = self.resource_availability.get("therapy_centers", 0)
             if tc:
@@ -96,7 +73,9 @@ class SocioProfile(BaseModel):
         if self.safety_profile:
             aqi = self.safety_profile.get("aqi_avg")
             if aqi:
-                lines.append(f"- AQI: {aqi} ({'poor' if aqi > 150 else 'moderate' if aqi > 100 else 'good'})")
+                lines.append(
+                    f"- AQI: {aqi} ({'poor' if aqi > 150 else 'moderate' if aqi > 100 else 'good'})"
+                )
 
         if not include_sensitive:
             lines.append("_(sensitive data omitted)_")

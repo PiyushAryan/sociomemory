@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-# ---------------------------------------------------------------------------
-# Node operations
-# ---------------------------------------------------------------------------
+from sociomemory.graph.edges import EdgeType
 
 MERGE_NODE = """
 MERGE (n:SocioNode {id: $id, child_id: $child_id})
@@ -42,10 +40,6 @@ MATCH (n:SocioNode {child_id: $child_id})
 RETURN count(n) AS count
 """
 
-# ---------------------------------------------------------------------------
-# Edge operations
-# ---------------------------------------------------------------------------
-
 MERGE_EDGE = """
 MATCH (a:SocioNode {id: $source_id})
 MATCH (b:SocioNode {id: $target_id})
@@ -76,21 +70,19 @@ MATCH (n:SocioNode {child_id: $child_id})-[r]->()
 RETURN count(r) AS count
 """
 
-# ---------------------------------------------------------------------------
-# Traversal
-# ---------------------------------------------------------------------------
 
 # NOTE: Neo4j forbids parameters in the variable-length bound (`*1..$n`); the
 # depth must be a literal. Use build_traverse()/build_neighborhood() so the
 # int-coerced depth is inlined safely (coercion also prevents injection).
 def build_traverse(max_depth: int = 5) -> str:
-    depth = int(max_depth)
+    depth = _bounded_hops(max_depth)
     return f"""
 MATCH path = (start:SocioNode {{id: $start_id}})-[r*1..{depth}]->(end:SocioNode)
 WHERE ALL(rel IN relationships(path) WHERE coalesce(properties(rel)['weight'], 1.0) >= $min_confidence)
 RETURN nodes(path) AS path_nodes, relationships(path) AS path_rels
 LIMIT $limit
 """
+
 
 SHORTEST_PATH = """
 MATCH (a:SocioNode {id: $source_id}), (b:SocioNode {id: $target_id})
@@ -99,13 +91,15 @@ RETURN [n IN nodes(path) | n.id] AS node_ids,
        length(path) AS path_length
 """
 
+
 def build_neighborhood(radius: int = 2) -> str:
-    hops = int(radius)
+    hops = _bounded_hops(radius)
     return f"""
 MATCH (n:SocioNode {{id: $node_id}})-[*1..{hops}]-(neighbor:SocioNode)
 WHERE neighbor.child_id = $child_id
 RETURN DISTINCT neighbor
 """
+
 
 FIND_INFERENCE_CHAIN = """
 MATCH path = (a:SocioNode {child_id: $child_id, node_type: $from_type})
@@ -118,10 +112,6 @@ ORDER BY path_length ASC
 LIMIT 10
 """
 
-# ---------------------------------------------------------------------------
-# Coaching subgraph
-# ---------------------------------------------------------------------------
-
 COACHING_SUBGRAPH = """
 MATCH path = (c:SocioNode {id: $child_node_id})-[*1..6]->(impl:SocioNode {node_type: 'Implication'})
 WHERE impl.child_id = $child_id
@@ -129,10 +119,6 @@ RETURN nodes(path) AS path_nodes, relationships(path) AS path_rels
 ORDER BY impl.confidence DESC
 LIMIT 20
 """
-
-# ---------------------------------------------------------------------------
-# Contradiction / trade-off detection
-# ---------------------------------------------------------------------------
 
 FIND_CONTRADICTIONS = """
 MATCH (a:SocioNode {child_id: $child_id})-[r:CONTRADICTS]->(b:SocioNode)
@@ -148,10 +134,6 @@ WHERE a.id < b.id
   AND a.direction <> b.direction
 RETURN a, b
 """
-
-# ---------------------------------------------------------------------------
-# Versioning (UPDATES / EXTENDS / DERIVES)
-# ---------------------------------------------------------------------------
 
 MARK_STALE_CASCADE = """
 MATCH (:SocioNode {id: $node_id})-[:DERIVES*1..10]->(downstream:SocioNode)
@@ -170,16 +152,12 @@ MATCH (input:SocioNode)-[:DERIVES]->(target:SocioNode {id: $node_id})
 RETURN input
 """
 
-# ---------------------------------------------------------------------------
-# Temporal queries (dual-layer timestamps)
-# ---------------------------------------------------------------------------
-
 QUERY_BY_EVENT_DATE = """
 MATCH (n:SocioNode {child_id: $child_id})
 WHERE n.event_date IS NOT NULL
   AND n.event_date >= $start
   AND n.event_date <= $end
-__TYPE_FILTER__
+  AND ($node_type IS NULL OR n.node_type = $node_type)
 RETURN n
 ORDER BY n.event_date ASC
 """
@@ -200,10 +178,6 @@ RETURN p.place_type AS place_type, p.place_subtype AS subtype,
 ORDER BY visit_count DESC
 """
 
-# ---------------------------------------------------------------------------
-# Provenance (source chunk tracing)
-# ---------------------------------------------------------------------------
-
 GET_PROVENANCE_CHAIN = """
 MATCH path = (source:SocioNode)-[:DERIVES*0..10]->(target:SocioNode {id: $node_id})
 WHERE source.child_id = $child_id
@@ -217,18 +191,10 @@ ORDER BY length(path) DESC
 LIMIT 5
 """
 
-# ---------------------------------------------------------------------------
-# Confidence / convergence
-# ---------------------------------------------------------------------------
-
 COMPUTE_CONVERGENCE = """
 MATCH (source:SocioNode)-[:INDICATES|DERIVES]->(target:SocioNode {id: $node_id})
 RETURN count(DISTINCT source) AS convergence_count
 """
-
-# ---------------------------------------------------------------------------
-# Profile aggregation (single-query profile computation)
-# ---------------------------------------------------------------------------
 
 AGGREGATE_PROFILE = """
 MATCH (c:SocioNode {id: $child_node_id, node_type: 'Child'})
@@ -255,14 +221,18 @@ RETURN
     collect(DISTINCT sensory) AS sensory_nodes
 """
 
+
 def build_merge_edge(edge_type: str) -> str:
-    return MERGE_EDGE.replace("{edge_type}", edge_type)
+    relationship = EdgeType(edge_type).value
+    return MERGE_EDGE.replace("{edge_type}", relationship)
+
 
 def build_traverse_with_types(edge_types: list[str], max_depth: int = 5) -> str:
     if edge_types:
-        rel_filter = "|".join(edge_types)
+        rel_filter = "|".join(EdgeType(edge_type).value for edge_type in edge_types)
+        depth = _bounded_hops(max_depth)
         return f"""
-MATCH path = (start:SocioNode {{id: $start_id}})-[r:{rel_filter}*1..{max_depth}]->(end:SocioNode)
+MATCH path = (start:SocioNode {{id: $start_id}})-[r:{rel_filter}*1..{depth}]->(end:SocioNode)
 WHERE ALL(rel IN relationships(path) WHERE coalesce(properties(rel)['weight'], 1.0) >= $min_confidence)
   AND end.child_id = $child_id
 RETURN nodes(path) AS path_nodes, relationships(path) AS path_rels
@@ -270,6 +240,13 @@ LIMIT $limit
 """
     return build_traverse(max_depth)
 
+
 def build_event_date_query(node_type: str | None = None) -> str:
-    type_filter = f"AND n.node_type = '{node_type}'" if node_type else ""
-    return QUERY_BY_EVENT_DATE.replace("__TYPE_FILTER__", type_filter)
+    return QUERY_BY_EVENT_DATE
+
+
+def _bounded_hops(value: int) -> int:
+    hops = int(value)
+    if not 1 <= hops <= 10:
+        raise ValueError("graph traversal depth must be between 1 and 10")
+    return hops

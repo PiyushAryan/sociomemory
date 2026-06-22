@@ -4,15 +4,14 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from sociomemory.graph.nodes import Node, NodeType, DataLevel
 from sociomemory.graph.edges import Edge, EdgeType
 from sociomemory.graph.memory_graph import MemoryGraph
+from sociomemory.graph.nodes import DataLevel, Node, NodeType
 
 logger = logging.getLogger(__name__)
 
 
 class GraphBuilder:
-
     def __init__(self, graph: MemoryGraph):
         self._graph = graph
         self._child_id = graph.child_id
@@ -52,10 +51,6 @@ class GraphBuilder:
             properties=properties or {},
         )
 
-    # ------------------------------------------------------------------
-    # Location enrichment
-    # ------------------------------------------------------------------
-
     def build_location(
         self,
         child_node_id: str,
@@ -80,16 +75,14 @@ class GraphBuilder:
         state = self._node(NodeType.STATE, {"name": state_name})
 
         nodes.extend([neighborhood, city, state])
-        edges.extend([
-            self._edge(child_node_id, neighborhood.id, EdgeType.LIVES_IN),
-            self._edge(neighborhood.id, city.id, EdgeType.LOCATED_IN),
-            self._edge(city.id, state.id, EdgeType.LOCATED_IN),
-        ])
+        edges.extend(
+            [
+                self._edge(child_node_id, neighborhood.id, EdgeType.LIVES_IN),
+                self._edge(neighborhood.id, city.id, EdgeType.LOCATED_IN),
+                self._edge(city.id, state.id, EdgeType.LOCATED_IN),
+            ]
+        )
         return nodes, edges
-
-    # ------------------------------------------------------------------
-    # Economic enrichment
-    # ------------------------------------------------------------------
 
     def build_economic(
         self,
@@ -123,10 +116,6 @@ class GraphBuilder:
         ]
         return nodes, edges
 
-    # ------------------------------------------------------------------
-    # Safety enrichment
-    # ------------------------------------------------------------------
-
     def build_safety(
         self,
         neighborhood_node_id: str,
@@ -147,16 +136,13 @@ class GraphBuilder:
                         (air_quality_score or 0.5)
                         + (1.0 - (crime_index or 0.3))
                         + (child_safety_score or 0.7)
-                    ) / 3,
+                    )
+                    / 3,
                     2,
                 ),
             },
         )
         return [safety], [self._edge(neighborhood_node_id, safety.id, EdgeType.HAS_CONTEXT)]
-
-    # ------------------------------------------------------------------
-    # Cultural enrichment
-    # ------------------------------------------------------------------
 
     def build_cultural(
         self,
@@ -177,10 +163,6 @@ class GraphBuilder:
         )
         return [cultural], [self._edge(neighborhood_node_id, cultural.id, EdgeType.HAS_CONTEXT)]
 
-    # ------------------------------------------------------------------
-    # Transport enrichment
-    # ------------------------------------------------------------------
-
     def build_transport(
         self,
         neighborhood_node_id: str,
@@ -197,10 +179,6 @@ class GraphBuilder:
             },
         )
         return [transport], [self._edge(neighborhood_node_id, transport.id, EdgeType.HAS_CONTEXT)]
-
-    # ------------------------------------------------------------------
-    # Health / nearby places enrichment
-    # ------------------------------------------------------------------
 
     def build_nearby_places(
         self,
@@ -231,10 +209,6 @@ class GraphBuilder:
             )
         return nodes, edges
 
-    # ------------------------------------------------------------------
-    # School enrichment
-    # ------------------------------------------------------------------
-
     def build_school(
         self,
         child_node_id: str,
@@ -245,7 +219,13 @@ class GraphBuilder:
         has_inclusion_program: bool = False,
         source_chunk: str | None = None,
     ) -> tuple[list[Node], list[Edge]]:
-        fee_tier = "high" if (fee_yearly or 0) > 150000 else "middle" if (fee_yearly or 0) > 50000 else "low"
+        fee_tier = (
+            "high"
+            if (fee_yearly or 0) > 150000
+            else "middle"
+            if (fee_yearly or 0) > 50000
+            else "low"
+        )
         school = self._node(
             NodeType.SCHOOL,
             {
@@ -260,10 +240,6 @@ class GraphBuilder:
             source_chunk=source_chunk,
         )
         return [school], [self._edge(child_node_id, school.id, EdgeType.ATTENDS)]
-
-    # ------------------------------------------------------------------
-    # Visit enrichment (behavioral place intelligence)
-    # ------------------------------------------------------------------
 
     def build_visit(
         self,
@@ -280,7 +256,6 @@ class GraphBuilder:
         nodes: list[Node] = []
         edges: list[Edge] = []
 
-        # Visit event node
         visit = self._node(
             NodeType.VISIT,
             {
@@ -295,7 +270,6 @@ class GraphBuilder:
             source_chunk=source_chunk,
             event_date=event_date,
         )
-        # Place node
         place = self._node(
             NodeType.PLACE,
             {
@@ -305,12 +279,13 @@ class GraphBuilder:
             },
         )
         nodes.extend([visit, place])
-        edges.extend([
-            self._edge(child_node_id, visit.id, EdgeType.VISITED),
-            self._edge(visit.id, place.id, EdgeType.AT),
-        ])
+        edges.extend(
+            [
+                self._edge(child_node_id, visit.id, EdgeType.VISITED),
+                self._edge(visit.id, place.id, EdgeType.AT),
+            ]
+        )
 
-        # Identity inference from place type
         inferred = self._infer_from_visit(place_type, place_subtype, visit.id, confidence)
         nodes.extend(inferred[0])
         edges.extend(inferred[1])
@@ -338,15 +313,22 @@ class GraphBuilder:
 
         key = (place_type.lower(), place_subtype.lower() if place_subtype else None)
         if key in RELIGIOUS_MAP or (place_type.lower(), None) in RELIGIOUS_MAP:
-            tradition, identity, festivals = RELIGIOUS_MAP.get(key) or RELIGIOUS_MAP.get((place_type.lower(), None))
+            religious_match = RELIGIOUS_MAP.get(key) or RELIGIOUS_MAP.get(
+                (place_type.lower(), None)
+            )
+            assert religious_match is not None
+            tradition, identity, festivals = religious_match
             religious = self._node(
                 NodeType.RELIGIOUS,
                 {"tradition": tradition, "identity": identity, "festivals": festivals},
                 confidence=base_confidence * 0.7,
             )
             nodes.append(religious)
-            edges.append(self._edge(visit_node_id, religious.id, EdgeType.INDICATES,
-                                    weight=base_confidence * 0.7))
+            edges.append(
+                self._edge(
+                    visit_node_id, religious.id, EdgeType.INDICATES, weight=base_confidence * 0.7
+                )
+            )
 
         LIFESTYLE_MAP = {
             "mountain": ("outdoor_active", "adventure_therapy"),
@@ -365,24 +347,29 @@ class GraphBuilder:
                 confidence=base_confidence * 0.8,
             )
             nodes.append(lifestyle)
-            edges.append(self._edge(visit_node_id, lifestyle.id, EdgeType.INDICATES,
-                                    weight=base_confidence * 0.8))
+            edges.append(
+                self._edge(
+                    visit_node_id, lifestyle.id, EdgeType.INDICATES, weight=base_confidence * 0.8
+                )
+            )
             if sensory_tag:
                 sensory = self._node(
                     NodeType.SENSORY_EVIDENCE,
-                    {"stimulus": sensory_tag.replace("_tolerant", ""),
-                     "response": "tolerated", "tag": sensory_tag},
+                    {
+                        "stimulus": sensory_tag.replace("_tolerant", ""),
+                        "response": "tolerated",
+                        "tag": sensory_tag,
+                    },
                     confidence=base_confidence * 0.6,
                 )
                 nodes.append(sensory)
-                edges.append(self._edge(visit_node_id, sensory.id, EdgeType.INDICATES,
-                                        weight=base_confidence * 0.6))
+                edges.append(
+                    self._edge(
+                        visit_node_id, sensory.id, EdgeType.INDICATES, weight=base_confidence * 0.6
+                    )
+                )
 
         return nodes, edges
-
-    # ------------------------------------------------------------------
-    # Parent / employer
-    # ------------------------------------------------------------------
 
     def build_parent(
         self,
@@ -420,10 +407,6 @@ class GraphBuilder:
 
         return nodes, edges
 
-    # ------------------------------------------------------------------
-    # Income node (derived)
-    # ------------------------------------------------------------------
-
     def build_income_node(
         self,
         input_node_ids: list[str],
@@ -448,8 +431,7 @@ class GraphBuilder:
             sensitivity=DataLevel.SENSITIVE,
         )
         edges = [
-            self._edge(src_id, income.id, EdgeType.DERIVES,
-                       weight=confidence)
+            self._edge(src_id, income.id, EdgeType.DERIVES, weight=confidence)
             for src_id in input_node_ids
         ]
         return [income], edges

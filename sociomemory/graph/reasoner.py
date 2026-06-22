@@ -7,7 +7,8 @@ from sociomemory.engine.behavioral import BehavioralInference
 from sociomemory.engine.income import IncomeEstimator
 from sociomemory.engine.tradeoff import TradeOffDetector
 from sociomemory.graph.nodes import Node, NodeType
-from sociomemory.models.coaching import CoachingImplication, IncomeEstimate, TradeOff
+from sociomemory.models.coaching import IncomeEstimate, TradeOff
+from sociomemory.providers.geocode import DEFAULT_RADIUS_KM
 
 if TYPE_CHECKING:
     from sociomemory.graph.memory_graph import MemoryGraph
@@ -17,8 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 class GraphReasoner:
-
-    def __init__(self, graph: "MemoryGraph", llm: "BaseLLM | None" = None):
+    def __init__(self, graph: MemoryGraph, llm: BaseLLM | None = None):
         self._graph = graph
         self._llm = llm
         self._income = IncomeEstimator(graph)
@@ -37,10 +37,13 @@ class GraphReasoner:
     async def get_therapy_opportunities(self) -> list[dict]:
         return await self._behavioral.suggest_therapy_opportunities()
 
-    async def find_nearby_resources(self, resource_type: str, max_distance_km: float = 5.0) -> list[Node]:
+    async def find_nearby_resources(
+        self, resource_type: str, max_distance_km: float = DEFAULT_RADIUS_KM
+    ) -> list[Node]:
         place_nodes = await self._graph.get_nodes_by_type(NodeType.PLACE)
         results = [
-            n for n in place_nodes
+            n
+            for n in place_nodes
             if resource_type.lower() in (n.properties.get("place_type") or "").lower()
             and float(n.properties.get("distance_km", 999)) <= max_distance_km
         ]
@@ -61,13 +64,17 @@ class GraphReasoner:
         hood_nodes = await self._graph.get_nodes_by_type(NodeType.NEIGHBORHOOD)
         if hood_nodes:
             n = hood_nodes[0]
-            lines.append(f"- Area: {n.properties.get('name', 'unknown')} ({n.properties.get('area_type', '')})")
+            lines.append(
+                f"- Area: {n.properties.get('name', 'unknown')} ({n.properties.get('area_type', '')})"
+            )
 
         safety_nodes = await self._graph.get_nodes_by_type(NodeType.SAFETY)
         if safety_nodes:
             aqi = safety_nodes[0].properties.get("aqi_avg")
             if aqi:
-                lines.append(f"- AQI: {aqi} ({'poor' if aqi > 150 else 'moderate' if aqi > 100 else 'good'})")
+                lines.append(
+                    f"- AQI: {aqi} ({'poor' if aqi > 150 else 'moderate' if aqi > 100 else 'good'})"
+                )
 
         cultural_nodes = await self._graph.get_nodes_by_type(NodeType.CULTURAL)
         if cultural_nodes:
@@ -84,11 +91,15 @@ class GraphReasoner:
 
         opps = await self.get_therapy_opportunities()
         if opps:
-            lines.append(f"- Therapy opportunities: {', '.join(o['type'].replace('_', ' ') for o in opps[:3])}")
+            lines.append(
+                f"- Therapy opportunities: {', '.join(o['type'].replace('_', ' ') for o in opps[:3])}"
+            )
 
         tradeoffs = await self.detect_tradeoffs()
         for to in tradeoffs[:2]:
-            lines.append(f"- Trade-off ({to.dimension}): {to.resolution or 'see positive/negative signals'}")
+            lines.append(
+                f"- Trade-off ({to.dimension}): {to.resolution or 'see positive/negative signals'}"
+            )
 
         return "\n".join(lines)
 
@@ -123,6 +134,4 @@ class GraphReasoner:
         return gaps
 
     async def _get_all_nodes(self) -> list[Node]:
-        from sociomemory.graph import cypher as Q
-        records = await self._graph._neo4j.run(Q.GET_ALL_NODES, child_id=self._graph.child_id)
-        return [self._graph._parse_node(r["n"]) for r in records if r.get("n")]
+        return await self._graph.get_all_nodes()

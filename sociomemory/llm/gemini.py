@@ -6,8 +6,9 @@ logger = logging.getLogger(__name__)
 
 
 class GeminiLLM:
-
-    def __init__(self, api_key: str, model: str = "gemini-2.0-flash", embed_model: str = "text-embedding-004"):
+    def __init__(
+        self, api_key: str, model: str = "gemini-2.0-flash", embed_model: str = "text-embedding-004"
+    ):
         self._api_key = api_key
         self._model = model
         self._embed_model = embed_model
@@ -17,6 +18,7 @@ class GeminiLLM:
         if self._client is None:
             try:
                 from google import genai
+
                 self._client = genai.Client(api_key=self._api_key)
             except ImportError:
                 raise ImportError("google-genai is required: pip install google-genai")

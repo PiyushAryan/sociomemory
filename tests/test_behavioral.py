@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import math
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 
 from sociomemory.engine.behavioral import BehavioralInference, _confidence
 from sociomemory.graph.memory_graph import MemoryGraph

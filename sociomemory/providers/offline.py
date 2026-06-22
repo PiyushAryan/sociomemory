@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +9,7 @@ from sociomemory.graph.builder import GraphBuilder
 from sociomemory.graph.edges import Edge
 from sociomemory.graph.nodes import Node, NodeType
 from sociomemory.models.signals import Signal, SignalType
+from sociomemory.time import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -25,12 +25,15 @@ def _load_json(filename: str) -> Any:
 
 
 class OfflineLocationProvider:
-
     provider_name = "offline_location"
     requires_network = False
 
     def __init__(self):
-        self._cities: list = _load_json("india_cities.json") if isinstance(_load_json("india_cities.json"), list) else []
+        self._cities: list = (
+            _load_json("india_cities.json")
+            if isinstance(_load_json("india_cities.json"), list)
+            else []
+        )
         self._real_estate: dict = _load_json("india_real_estate.json")
         self._cultural: dict = _load_json("cultural_regions.json")
 
@@ -107,7 +110,6 @@ class OfflineLocationProvider:
 
 
 class OfflineSchoolProvider:
-
     provider_name = "offline_school"
     requires_network = False
 
@@ -155,7 +157,6 @@ class OfflineSchoolProvider:
 
 
 class OfflineVisitProvider:
-
     provider_name = "offline_visit"
     requires_network = False
 
@@ -177,7 +178,7 @@ class OfflineVisitProvider:
             place_name=signal.place_name or signal.extracted_value.title(),
             place_type=place_type,
             place_subtype=signal.place_subtype,
-            event_date=signal.event_date or signal.timestamp or datetime.utcnow(),
+            event_date=signal.event_date or signal.timestamp or utc_now(),
             mood=signal.mood,
             sensory_notes=signal.sensory_notes,
             source_chunk=signal.raw_text,

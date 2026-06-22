@@ -13,8 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class EnrichmentPipeline:
-
-    def __init__(self, graph: "MemoryGraph", providers: dict[SignalType, list["BaseProvider"]]):
+    def __init__(self, graph: MemoryGraph, providers: dict[SignalType, list[BaseProvider]]):
         self._graph = graph
         self._providers = providers
 

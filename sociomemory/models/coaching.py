@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -37,5 +37,5 @@ class TradeOff(BaseModel):
     positive_summary: str
     negative_summary: str
     tension_score: float = Field(default=0.5, ge=0.0, le=1.0)
-    resolution: Optional[str] = None
+    resolution: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)

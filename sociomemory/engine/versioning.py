@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sociomemory.graph.edges import EdgeType
 from sociomemory.graph.nodes import Node, NodeType
+from sociomemory.time import utc_now
 
 if TYPE_CHECKING:
     from sociomemory.graph.memory_graph import MemoryGraph
@@ -14,19 +14,19 @@ logger = logging.getLogger(__name__)
 
 
 class VersioningEngine:
-
-    def __init__(self, graph: "MemoryGraph"):
+    def __init__(self, graph: MemoryGraph):
         self._graph = graph
 
     async def update_node(self, old_node_id: str, new_node: Node) -> None:
         await self._graph.merge_subgraph([new_node], [])
         from sociomemory.graph.edges import Edge
+
         updates_edge = Edge(
             source_id=new_node.id,
             target_id=old_node_id,
             type=EdgeType.UPDATES,
             weight=1.0,
-            properties={"updated_at": datetime.utcnow().isoformat()},
+            properties={"updated_at": utc_now().isoformat()},
         )
         await self._graph.merge_subgraph([], [updates_edge])
         count = await self._graph.mark_stale(old_node_id)
@@ -35,6 +35,7 @@ class VersioningEngine:
     async def extend_node(self, base_node_id: str, new_node: Node) -> None:
         await self._graph.merge_subgraph([new_node], [])
         from sociomemory.graph.edges import Edge
+
         extends_edge = Edge(
             source_id=new_node.id,
             target_id=base_node_id,
@@ -46,8 +47,13 @@ class VersioningEngine:
     async def recompute_stale(self) -> list[str]:
         stale_nodes = await self._graph.get_stale_nodes()
         priority_order = [
-            NodeType.REAL_ESTATE, NodeType.ECONOMIC, NodeType.TRANSPORT,
-            NodeType.SAFETY, NodeType.CULTURAL, NodeType.INCOME, NodeType.IMPLICATION,
+            NodeType.REAL_ESTATE,
+            NodeType.ECONOMIC,
+            NodeType.TRANSPORT,
+            NodeType.SAFETY,
+            NodeType.CULTURAL,
+            NodeType.INCOME,
+            NodeType.IMPLICATION,
         ]
 
         def sort_key(node: Node) -> int:

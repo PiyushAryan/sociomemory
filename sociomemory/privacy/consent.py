@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 
+from sociomemory.time import utc_now
 
-class ConsentScope(str, Enum):
+
+class ConsentScope(StrEnum):
     LOCATION_AREA = "location_area"
     LOCATION_EXACT = "location_exact"
     INCOME_INFERENCE = "income_inference"
@@ -18,7 +19,6 @@ class ConsentScope(str, Enum):
 
 
 class ConsentManager:
-
     SCHEMA = """
     CREATE TABLE IF NOT EXISTS consent (
         child_id TEXT NOT NULL,
@@ -37,10 +37,12 @@ class ConsentManager:
         self._conn.execute(self.SCHEMA)
         self._conn.commit()
 
-    def record_consent(self, child_id: str, parent_id: str, scope: ConsentScope, granted: bool = True) -> None:
+    def record_consent(
+        self, child_id: str, parent_id: str, scope: ConsentScope, granted: bool = True
+    ) -> None:
         self._conn.execute(
             "INSERT OR REPLACE INTO consent (child_id, parent_id, scope, granted, granted_at) VALUES (?,?,?,?,?)",
-            (child_id, parent_id, scope.value, int(granted), datetime.utcnow().isoformat()),
+            (child_id, parent_id, scope.value, int(granted), utc_now().isoformat()),
         )
         self._conn.commit()
 

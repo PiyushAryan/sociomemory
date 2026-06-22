@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sociomemory.models.signals import Signal, SignalSource, SignalType
+from sociomemory.time import utc_now
 
 if TYPE_CHECKING:
     from sociomemory.llm.base import BaseLLM
@@ -68,13 +69,14 @@ PLACE_TYPES = {
 
 
 class SignalExtractor:
-
-    def __init__(self, llm: "BaseLLM | None" = None):
+    def __init__(self, llm: BaseLLM | None = None):
         self._llm = llm
 
-    async def extract(self, text: str, source: SignalSource = SignalSource.CONVERSATION) -> list[Signal]:
+    async def extract(
+        self, text: str, source: SignalSource = SignalSource.CONVERSATION
+    ) -> list[Signal]:
         signals: list[Signal] = []
-        now = datetime.utcnow()
+        now = utc_now()
         signals.extend(self._extract_location(text, source, now))
         signals.extend(self._extract_school(text, source, now))
         signals.extend(self._extract_profession(text, source, now))
@@ -89,10 +91,16 @@ class SignalExtractor:
             for match in re.finditer(pattern, text, re.IGNORECASE):
                 val = match.group(1).strip().rstrip(",. ")
                 if len(val) >= 3:
-                    results.append(Signal(
-                        raw_text=text, signal_type=SignalType.LOCATION,
-                        extracted_value=val, confidence=0.85, source=source, timestamp=now,
-                    ))
+                    results.append(
+                        Signal(
+                            raw_text=text,
+                            signal_type=SignalType.LOCATION,
+                            extracted_value=val,
+                            confidence=0.85,
+                            source=source,
+                            timestamp=now,
+                        )
+                    )
         return results
 
     def _extract_school(self, text: str, source: SignalSource, now: datetime) -> list[Signal]:
@@ -101,10 +109,16 @@ class SignalExtractor:
             for match in re.finditer(pattern, text, re.IGNORECASE):
                 val = match.group(1).strip()
                 if len(val) >= 3:
-                    results.append(Signal(
-                        raw_text=text, signal_type=SignalType.SCHOOL,
-                        extracted_value=val, confidence=0.9, source=source, timestamp=now,
-                    ))
+                    results.append(
+                        Signal(
+                            raw_text=text,
+                            signal_type=SignalType.SCHOOL,
+                            extracted_value=val,
+                            confidence=0.9,
+                            source=source,
+                            timestamp=now,
+                        )
+                    )
         return results
 
     def _extract_profession(self, text: str, source: SignalSource, now: datetime) -> list[Signal]:
@@ -113,10 +127,16 @@ class SignalExtractor:
             for match in re.finditer(pattern, text, re.IGNORECASE):
                 val = match.group(1).strip()
                 if len(val) >= 3:
-                    results.append(Signal(
-                        raw_text=text, signal_type=SignalType.PARENT_PROFESSION,
-                        extracted_value=val, confidence=0.8, source=source, timestamp=now,
-                    ))
+                    results.append(
+                        Signal(
+                            raw_text=text,
+                            signal_type=SignalType.PARENT_PROFESSION,
+                            extracted_value=val,
+                            confidence=0.8,
+                            source=source,
+                            timestamp=now,
+                        )
+                    )
         return results
 
     def _extract_visit(self, text: str, source: SignalSource, now: datetime) -> list[Signal]:
@@ -132,9 +152,14 @@ class SignalExtractor:
             if existing is not None and existing.place_subtype and subtype is None:
                 continue
             by_type[place_type] = Signal(
-                raw_text=text, signal_type=SignalType.VISIT,
-                extracted_value=keyword, confidence=0.75, source=source, timestamp=now,
-                place_type=place_type, place_subtype=subtype,
+                raw_text=text,
+                signal_type=SignalType.VISIT,
+                extracted_value=keyword,
+                confidence=0.75,
+                source=source,
+                timestamp=now,
+                place_type=place_type,
+                place_subtype=subtype,
             )
         return list(by_type.values())
 
@@ -148,6 +173,7 @@ class SignalExtractor:
         )
         try:
             import json
+
             resp = await self._llm.complete(prompt, temperature=0.1)
             resp = resp.strip().strip("```json").strip("```").strip()
             data = json.loads(resp)
@@ -157,7 +183,8 @@ class SignalExtractor:
                     signal_type=SignalType(item.get("signal_type", "generic")),
                     extracted_value=str(item.get("extracted_value", "")),
                     confidence=float(item.get("confidence", 0.5)),
-                    source=source, timestamp=now,
+                    source=source,
+                    timestamp=now,
                 )
                 for item in data
                 if item.get("extracted_value")

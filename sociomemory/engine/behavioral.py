@@ -18,8 +18,7 @@ def _confidence(count: int) -> float:
 
 
 class BehavioralInference:
-
-    def __init__(self, graph: "MemoryGraph"):
+    def __init__(self, graph: MemoryGraph):
         self._graph = graph
 
     async def infer_identity(self) -> dict:
@@ -67,11 +66,20 @@ class BehavioralInference:
         result: dict = {}
         if religious:
             top = religious.most_common(1)[0]
-            result["religious"] = {"identity": top[0], "confidence": _confidence(top[1]), "visits": top[1]}
+            result["religious"] = {
+                "identity": top[0],
+                "confidence": _confidence(top[1]),
+                "visits": top[1],
+            }
         if lifestyle:
-            result["lifestyle"] = {tag: {"confidence": _confidence(c), "visits": c} for tag, c in lifestyle.most_common(3)}
+            result["lifestyle"] = {
+                tag: {"confidence": _confidence(c), "visits": c}
+                for tag, c in lifestyle.most_common(3)
+            }
         if sensory:
-            result["sensory"] = {sig: {"confidence": _confidence(c), "visits": c} for sig, c in sensory.most_common()}
+            result["sensory"] = {
+                sig: {"confidence": _confidence(c), "visits": c} for sig, c in sensory.most_common()
+            }
         if dietary:
             top = dietary.most_common(1)[0]
             result["dietary"] = {"tag": top[0], "confidence": _confidence(top[1])}
@@ -85,33 +93,43 @@ class BehavioralInference:
         religious = identity.get("religious", {})
 
         if lifestyle.get("outdoor_active", {}).get("confidence", 0) > 0.5:
-            opportunities.append({
-                "type": "adventure_therapy",
-                "rationale": "Family is outdoor-active",
-                "confidence": lifestyle["outdoor_active"]["confidence"],
-            })
+            opportunities.append(
+                {
+                    "type": "adventure_therapy",
+                    "rationale": "Family is outdoor-active",
+                    "confidence": lifestyle["outdoor_active"]["confidence"],
+                }
+            )
         if sensory.get("water_comfortable", {}).get("confidence", 0) > 0.5:
-            opportunities.append({
-                "type": "aqua_therapy",
-                "rationale": "Water comfort confirmed from visits",
-                "confidence": sensory["water_comfortable"]["confidence"],
-            })
+            opportunities.append(
+                {
+                    "type": "aqua_therapy",
+                    "rationale": "Water comfort confirmed from visits",
+                    "confidence": sensory["water_comfortable"]["confidence"],
+                }
+            )
         if sensory.get("crowd_tolerant", {}).get("confidence", 0) > 0.4:
-            opportunities.append({
-                "type": "group_therapy",
-                "rationale": "Crowd tolerance suggests group settings are viable",
-                "confidence": sensory["crowd_tolerant"]["confidence"],
-            })
+            opportunities.append(
+                {
+                    "type": "group_therapy",
+                    "rationale": "Crowd tolerance suggests group settings are viable",
+                    "confidence": sensory["crowd_tolerant"]["confidence"],
+                }
+            )
         if religious.get("identity") in ("krishna_devotee", "hindu"):
-            opportunities.append({
-                "type": "cultural_narrative",
-                "rationale": "Use Krishna/Hindu stories as therapy narrative bridges",
-                "confidence": religious["confidence"],
-            })
+            opportunities.append(
+                {
+                    "type": "cultural_narrative",
+                    "rationale": "Use Krishna/Hindu stories as therapy narrative bridges",
+                    "confidence": religious["confidence"],
+                }
+            )
         if lifestyle.get("experiential_learner", {}).get("confidence", 0) > 0.4:
-            opportunities.append({
-                "type": "museum_based_learning",
-                "rationale": "Family invests in experiential learning trips",
-                "confidence": lifestyle["experiential_learner"]["confidence"],
-            })
+            opportunities.append(
+                {
+                    "type": "museum_based_learning",
+                    "rationale": "Family invests in experiential learning trips",
+                    "confidence": lifestyle["experiential_learner"]["confidence"],
+                }
+            )
         return opportunities

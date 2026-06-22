@@ -28,7 +28,19 @@ AFFORDABILITY = {
     "high": 0.95,
 }
 
-IT_TIER1 = {"infosys", "tcs", "wipro", "accenture", "ibm", "cognizant", "microsoft", "google", "amazon", "meta", "flipkart"}
+IT_TIER1 = {
+    "infosys",
+    "tcs",
+    "wipro",
+    "accenture",
+    "ibm",
+    "cognizant",
+    "microsoft",
+    "google",
+    "amazon",
+    "meta",
+    "flipkart",
+}
 
 
 def _bracket_from_monthly(monthly: float) -> str:
@@ -39,14 +51,12 @@ def _bracket_from_monthly(monthly: float) -> str:
 
 
 class IncomeEstimator:
-
-    def __init__(self, graph: "MemoryGraph"):
+    def __init__(self, graph: MemoryGraph):
         self._graph = graph
 
     async def estimate(self) -> IncomeEstimate | None:
-        signals: list[tuple[str, str, float]] = []  # (source, bracket, weight)
+        signals: list[tuple[str, str, float]] = []
 
-        # Path 1: Location → RealEstate → rent
         re_nodes = await self._graph.get_nodes_by_type(NodeType.REAL_ESTATE)
         for re in re_nodes:
             rent = re.properties.get("avg_rent_2bhk")
@@ -54,7 +64,6 @@ class IncomeEstimator:
                 signals.append(("location_rent", _bracket_from_monthly(rent / 0.275), 0.35))
                 break
 
-        # Path 2: School → fee_yearly
         school_nodes = await self._graph.get_nodes_by_type(NodeType.SCHOOL)
         for school in school_nodes:
             fee = school.properties.get("fee_yearly")
@@ -62,7 +71,6 @@ class IncomeEstimator:
                 signals.append(("school_fee", _bracket_from_monthly((fee / 0.12) / 12), 0.25))
                 break
 
-        # Path 3: Employer → industry
         employer_nodes = await self._graph.get_nodes_by_type(NodeType.EMPLOYER)
         for emp in employer_nodes:
             bracket = self._employer_bracket(emp.properties)
@@ -70,7 +78,6 @@ class IncomeEstimator:
                 signals.append(("employer_industry", bracket, 0.25))
                 break
 
-        # Path 4: Economic → income_tier
         econ_nodes = await self._graph.get_nodes_by_type(NodeType.ECONOMIC)
         for econ in econ_nodes:
             tier = econ.properties.get("income_tier", "").lower()

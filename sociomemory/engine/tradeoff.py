@@ -15,27 +15,26 @@ logger = logging.getLogger(__name__)
 
 
 class TradeOffDetector:
-
-    def __init__(self, graph: "MemoryGraph", llm: "BaseLLM | None" = None):
+    def __init__(self, graph: MemoryGraph, llm: BaseLLM | None = None):
         self._graph = graph
         self._llm = llm
 
     async def detect(self) -> list[TradeOff]:
         tradeoffs = []
 
-        # Method 1: Explicit CONTRADICTS edges
         contradictions = await self._graph.find_contradictions()
         for node_a, node_b, tension in contradictions:
-            tradeoffs.append(TradeOff(
-                dimension=self._infer_dimension(node_a, node_b),
-                positive_node_id=node_a.id,
-                negative_node_id=node_b.id,
-                positive_summary=str(node_a.properties),
-                negative_summary=str(node_b.properties),
-                tension_score=tension,
-            ))
+            tradeoffs.append(
+                TradeOff(
+                    dimension=self._infer_dimension(node_a, node_b),
+                    positive_node_id=node_a.id,
+                    negative_node_id=node_b.id,
+                    positive_summary=str(node_a.properties),
+                    negative_summary=str(node_b.properties),
+                    tension_score=tension,
+                )
+            )
 
-        # Method 2: Opposing implication nodes
         impl_nodes = await self._graph.get_nodes_by_type(NodeType.IMPLICATION)
         for a, b in combinations(impl_nodes, 2):
             a_dim = a.properties.get("dimension", "")
@@ -45,14 +44,16 @@ class TradeOffDetector:
             if a_dim and a_dim == b_dim and a_dir and b_dir and a_dir != b_dir:
                 pos = a if a_dir == "positive" else b
                 neg = b if a_dir == "positive" else a
-                tradeoffs.append(TradeOff(
-                    dimension=a_dim,
-                    positive_node_id=pos.id,
-                    negative_node_id=neg.id,
-                    positive_summary=pos.properties.get("text", ""),
-                    negative_summary=neg.properties.get("text", ""),
-                    tension_score=0.6,
-                ))
+                tradeoffs.append(
+                    TradeOff(
+                        dimension=a_dim,
+                        positive_node_id=pos.id,
+                        negative_node_id=neg.id,
+                        positive_summary=pos.properties.get("text", ""),
+                        negative_summary=neg.properties.get("text", ""),
+                        tension_score=0.6,
+                    )
+                )
 
         if self._llm:
             for to in tradeoffs:
@@ -73,6 +74,8 @@ class TradeOffDetector:
         return "general"
 
     async def _resolve(self, tradeoff: TradeOff) -> str:
+        if self._llm is None:
+            return ""
         prompt = (
             f"A child's coaching context has a trade-off on '{tradeoff.dimension}'.\n"
             f"Positive: {tradeoff.positive_summary}\n"

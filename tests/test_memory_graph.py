@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from sociomemory.graph.edges import Edge, EdgeType
 from sociomemory.graph.memory_graph import MemoryGraph, Subgraph
-from sociomemory.graph.nodes import DataLevel, Node, NodeType
+from sociomemory.graph.nodes import Node, NodeType
+from sociomemory.storage.keyword import BM25Index
 from sociomemory.storage.neo4j_backend import Neo4jBackend
 from sociomemory.storage.vector import FaissIndex
 
@@ -21,7 +23,20 @@ def make_graph(child_id: str = "test_child") -> MemoryGraph:
     return MemoryGraph(child_id=child_id, neo4j=neo4j, faiss=faiss)
 
 
-def make_node(node_type: NodeType = NodeType.NEIGHBORHOOD, confidence: float = 0.9, **props) -> Node:
+def make_graph_with_keyword(child_id: str = "test_child") -> MemoryGraph:
+    graph = make_graph(child_id)
+    keyword = MagicMock(spec=BM25Index)
+    keyword.search = MagicMock(return_value=[])
+    keyword.add = MagicMock()
+    keyword.save = MagicMock()
+    keyword.size = 0
+    graph._keyword = keyword
+    return graph
+
+
+def make_node(
+    node_type: NodeType = NodeType.NEIGHBORHOOD, confidence: float = 0.9, **props
+) -> Node:
     return Node(
         child_id="test_child",
         type=node_type,
@@ -59,6 +74,34 @@ async def test_merge_subgraph_uses_transaction():
 
 
 @pytest.mark.asyncio
+async def test_merge_subgraph_indexes_keyword_text():
+    graph = make_graph_with_keyword()
+    node = make_node(NodeType.NEIGHBORHOOD, name="Koramangala", area_type="urban_affluent")
+
+    await graph.merge_subgraph([node], [])
+
+    graph._keyword.add.assert_called_once()
+    indexed_id, indexed_text = graph._keyword.add.call_args.args
+    assert indexed_id == node.id
+    assert "Koramangala" in indexed_text
+    graph._keyword.save.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_extract_context_subgraph_uses_keyword_hits():
+    graph = make_graph_with_keyword()
+    node = make_node(NodeType.PLACE, name="Therapy Center")
+    graph._keyword.search = MagicMock(return_value=[(node.id, 3.2)])
+    graph.get_node = AsyncMock(return_value=node)
+    graph.get_neighborhood = AsyncMock(return_value=Subgraph(nodes=[], edges=[]))
+
+    subgraph = await graph.extract_context_subgraph(query_text="therapy")
+
+    assert subgraph.nodes == [node]
+    graph._keyword.search.assert_called_once_with("therapy", top_k=10)
+
+
+@pytest.mark.asyncio
 async def test_get_nodes_by_type_empty():
     graph = make_graph()
     graph._neo4j.run = AsyncMock(return_value=[])
@@ -77,11 +120,13 @@ async def test_node_count():
 @pytest.mark.asyncio
 async def test_summary():
     graph = make_graph()
-    graph._neo4j.run = AsyncMock(side_effect=[
-        [{"count": 10}],  # node_count
-        [{"count": 20}],  # edge_count
-        [],               # get_stale_nodes
-    ])
+    graph._neo4j.run = AsyncMock(
+        side_effect=[
+            [{"count": 10}],
+            [{"count": 20}],
+            [],
+        ]
+    )
     graph._faiss.size = 5
     result = await graph.summary()
     assert result["nodes"] == 10

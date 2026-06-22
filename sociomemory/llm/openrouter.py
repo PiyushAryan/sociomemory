@@ -10,7 +10,6 @@ DEFAULT_OPENROUTER_EMBED_MODEL = "nvidia/llama-nemotron-embed-vl-1b-v2:free"
 
 
 class OpenRouterLLM:
-
     def __init__(
         self,
         api_key: str,

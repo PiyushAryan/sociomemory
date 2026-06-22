@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import hashlib
 from collections import Counter
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from statistics import median
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING
 
 from sociomemory.graph.edges import Edge, EdgeType
 from sociomemory.graph.nodes import DataLevel, Node, NodeType
@@ -14,12 +15,14 @@ if TYPE_CHECKING:
     from sociomemory.graph.memory_graph import MemoryGraph
 
 
-DEFAULT_EPISODE_TYPES = frozenset({
-    NodeType.VISIT,
-    NodeType.SENSORY_EVIDENCE,
-    NodeType.SIGNAL,
-    NodeType.THERAPY_OPPORTUNITY,
-})
+DEFAULT_EPISODE_TYPES = frozenset(
+    {
+        NodeType.VISIT,
+        NodeType.SENSORY_EVIDENCE,
+        NodeType.SIGNAL,
+        NodeType.THERAPY_OPPORTUNITY,
+    }
+)
 
 SENSITIVITY_RANK = {
     DataLevel.PUBLIC: 0,
@@ -36,10 +39,9 @@ class EpisodeSegment:
 
 
 class EpisodeSegmenter:
-
     def __init__(
         self,
-        graph: "MemoryGraph",
+        graph: MemoryGraph,
         *,
         default_gap_days: int = 21,
         eligible_types: Iterable[NodeType] | None = None,
@@ -78,7 +80,8 @@ class EpisodeSegmenter:
 
     def _eligible_events(self, nodes: list[Node]) -> list[Node]:
         events = [
-            node for node in nodes
+            node
+            for node in nodes
             if node.event_date is not None and node.type in self._eligible_types
         ]
         return sorted(events, key=lambda node: (node.event_date or datetime.min, node.id))
@@ -146,30 +149,35 @@ class EpisodeSegmenter:
         edges: list[Edge] = []
         for segment in segments:
             for index, member in enumerate(segment.members):
-                edges.append(Edge(
-                    source_id=member.id,
-                    target_id=segment.episode.id,
-                    type=EdgeType.PART_OF,
-                    weight=max(0.0, min(member.confidence, 1.0)),
-                    properties={
-                        "position": index,
-                        "event_date": member.event_date.date().isoformat() if member.event_date else None,
-                    },
-                ))
+                edges.append(
+                    Edge(
+                        source_id=member.id,
+                        target_id=segment.episode.id,
+                        type=EdgeType.PART_OF,
+                        weight=max(0.0, min(member.confidence, 1.0)),
+                        properties={
+                            "position": index,
+                            "event_date": member.event_date.date().isoformat()
+                            if member.event_date
+                            else None,
+                        },
+                    )
+                )
         for left, right in zip(segments, segments[1:]):
             left_end = left.episode.properties["end_date"]
             right_start = right.episode.properties["start_date"]
             gap_days = (
-                datetime.fromisoformat(right_start).date()
-                - datetime.fromisoformat(left_end).date()
+                datetime.fromisoformat(right_start).date() - datetime.fromisoformat(left_end).date()
             ).days
-            edges.append(Edge(
-                source_id=left.episode.id,
-                target_id=right.episode.id,
-                type=EdgeType.FOLLOWS,
-                weight=1.0,
-                properties={"gap_days": gap_days},
-            ))
+            edges.append(
+                Edge(
+                    source_id=left.episode.id,
+                    target_id=right.episode.id,
+                    type=EdgeType.FOLLOWS,
+                    weight=1.0,
+                    properties={"gap_days": gap_days},
+                )
+            )
         return edges
 
     def _episode_id(self, first_member: Node) -> str:
@@ -181,7 +189,15 @@ class EpisodeSegmenter:
         return themes.most_common(1)[0][0]
 
     def _theme_key(self, node: Node) -> str:
-        for key in ("place_subtype", "place_type", "signal_type", "category", "title", "name", "value"):
+        for key in (
+            "place_subtype",
+            "place_type",
+            "signal_type",
+            "category",
+            "title",
+            "name",
+            "value",
+        ):
             value = node.properties.get(key)
             if value:
                 return str(value).strip().lower().replace(" ", "_")
@@ -197,4 +213,6 @@ class EpisodeSegmenter:
         return round(min(1.0, confidence + min(0.2, 0.04 * max(event_count - 1, 0))), 3)
 
     def _max_sensitivity(self, members: list[Node]) -> DataLevel:
-        return max((member.sensitivity for member in members), key=lambda level: SENSITIVITY_RANK[level])
+        return max(
+            (member.sensitivity for member in members), key=lambda level: SENSITIVITY_RANK[level]
+        )

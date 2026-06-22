@@ -5,7 +5,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from sociomemory.graph.edges import Edge, EdgeType
-from sociomemory.graph.nodes import DataLevel, Node, NodeType
+from sociomemory.graph.nodes import Node, NodeType
 from sociomemory.models.signals import Signal, SignalType
 
 if TYPE_CHECKING:
@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 
 
 class PlaceEnrichmentProvider:
-
     provider_name = "place_web_enrichment"
     requires_network = True
 
@@ -40,10 +39,17 @@ Web results:
 
 JSON:"""
 
-    def __init__(self, llm: "BaseLLM", cache: "SQLiteCache", exa_api_key: str = ""):
+    def __init__(
+        self,
+        llm: BaseLLM,
+        cache: SQLiteCache,
+        exa_api_key: str = "",
+        cache_ttl_hours: int = 24,
+    ):
         self._llm = llm
         self._cache = cache
         self._exa_api_key = exa_api_key
+        self._cache_ttl_hours = cache_ttl_hours
         self._exa = None
 
     def _get_exa(self):
@@ -51,7 +57,8 @@ JSON:"""
             return None
         if self._exa is None:
             try:
-                from exa_py import Exa  # type: ignore
+                from exa_py import Exa
+
                 self._exa = Exa(api_key=self._exa_api_key)
             except ImportError:
                 logger.warning("exa-py not installed; place enrichment uses OpenAI web search only")
@@ -59,7 +66,7 @@ JSON:"""
                 return None
         return self._exa
 
-    async def enrich(self, signal: Signal, graph: "MemoryGraph") -> tuple[list[Node], list[Edge]]:
+    async def enrich(self, signal: Signal, graph: MemoryGraph) -> tuple[list[Node], list[Edge]]:
         if signal.signal_type != SignalType.VISIT:
             return [], []
 
@@ -69,12 +76,17 @@ JSON:"""
 
         hood = await self._first(graph, NodeType.NEIGHBORHOOD)
         city = await self._first(graph, NodeType.CITY)
-        locality = " ".join(
-            part for part in (
-                hood.properties.get("name") if hood else None,
-                city.properties.get("name") if city else None,
-            ) if part
-        ) or "India"
+        locality = (
+            " ".join(
+                part
+                for part in (
+                    hood.properties.get("name") if hood else None,
+                    city.properties.get("name") if city else None,
+                )
+                if part
+            )
+            or "India"
+        )
 
         place_label = place.properties.get("name") or signal.extracted_value
         place_type = place.properties.get("place_type") or signal.place_type or ""
@@ -88,11 +100,16 @@ JSON:"""
             data = await self._extract(place_label, place_type, locality, content)
             if not data:
                 return [], []
-            self._cache.set(cache_key, data, provider="place_web", ttl_hours=24)
+            self._cache.set(
+                cache_key,
+                data,
+                provider="place_web",
+                ttl_hours=self._cache_ttl_hours,
+            )
 
         return self._build(place, hood, data)
 
-    async def _find_place(self, signal: Signal, graph: "MemoryGraph") -> Node | None:
+    async def _find_place(self, signal: Signal, graph: MemoryGraph) -> Node | None:
         places = await graph.get_nodes_by_type(NodeType.PLACE)
         if not places:
             return None
@@ -117,7 +134,9 @@ JSON:"""
         exa = self._get_exa()
         if exa is not None:
             try:
-                results = exa.search_and_contents(query, num_results=3, text={"max_characters": 600})
+                results = exa.search_and_contents(
+                    query, num_results=3, text={"max_characters": 600}
+                )
                 for r in results.results:
                     if r.text:
                         parts.append(f"[exa:{r.title}]\n{r.text}")
@@ -137,9 +156,14 @@ JSON:"""
 
         return "\n\n".join(parts)
 
-    async def _extract(self, place: str, place_type: str, locality: str, content: str) -> dict | None:
+    async def _extract(
+        self, place: str, place_type: str, locality: str, content: str
+    ) -> dict | None:
         prompt = self.EXTRACT_PROMPT.format(
-            place=place, place_type=place_type or "unknown", locality=locality, content=content[:4000]
+            place=place,
+            place_type=place_type or "unknown",
+            locality=locality,
+            content=content[:4000],
         )
         try:
             raw = await self._llm.complete(prompt, temperature=0.1)
@@ -178,17 +202,21 @@ JSON:"""
         )
         edges: list[Edge] = []
         if hood is not None:
-            edges.append(Edge(
-                source_id=place.id,
-                target_id=hood.id,
-                type=EdgeType.LOCATED_IN,
-                weight=0.7,
-                properties={"inferred": "web_enrichment"},
-            ))
-        logger.info("Web-enriched place %s -> %s", place.properties.get("name"), data.get("category"))
+            edges.append(
+                Edge(
+                    source_id=place.id,
+                    target_id=hood.id,
+                    type=EdgeType.LOCATED_IN,
+                    weight=0.7,
+                    properties={"inferred": "web_enrichment"},
+                )
+            )
+        logger.info(
+            "Web-enriched place %s -> %s", place.properties.get("name"), data.get("category")
+        )
         return [enriched_place], edges
 
-    async def _first(self, graph: "MemoryGraph", node_type: NodeType) -> Node | None:
+    async def _first(self, graph: MemoryGraph, node_type: NodeType) -> Node | None:
         nodes = await graph.get_nodes_by_type(node_type)
         return nodes[0] if nodes else None
 
