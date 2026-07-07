@@ -155,6 +155,16 @@ pip install "sociomemory[vector,gemini]"
 pip install "sociomemory[all]"
 ```
 
+### Optional: spaCy NER pre-pass
+
+Robust entity extraction uses spaCy as an optional accelerator:
+
+    pip install "sociomemory[nlp]"
+    python -m spacy download en_core_web_sm
+
+Without it, extraction falls back to the LLM (and the offline place-keyword
+scan). spaCy only speeds up and anchors English-script spans.
+
 ### Connect to Neo4j AuraDB Free
 
 ```python
