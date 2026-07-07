@@ -23,8 +23,10 @@ _ACCEPTED_LABELS = {
     "LANGUAGE",
 }
 
-# Text inside straight or curly quotes (titles, specific names).
-_QUOTED_RE = re.compile("[\"'“”]([^\"'“”]{2,60})[\"'“”]")
+# Text inside double quotes (straight or curly) — titles, specific names.
+# Single quotes/apostrophes are intentionally excluded to avoid matching
+# contractions (“don't”, “that's”) as quoted spans.
+_QUOTED_RE = re.compile(r'["“”]([^"“”]{2,60})["“”]')
 
 _nlp = None
 _load_failed = False
@@ -57,9 +59,7 @@ def _load_nlp():
         try:
             import spacy
         except ImportError:
-            logger.info(
-                "spaCy not installed; skipping NER pre-pass (install sociomemory[nlp])"
-            )
+            logger.info("spaCy not installed; skipping NER pre-pass (install sociomemory[nlp])")
             _load_failed = True
             return None
         try:
@@ -91,16 +91,16 @@ def candidates_from_doc(doc) -> list[Candidate]:
         if span in seen:
             continue
         seen.add(span)
-        out.append(
-            Candidate(text=ent.text, label=ent.label_, start=span[0], end=span[1])
-        )
+        out.append(Candidate(text=ent.text, label=ent.label_, start=span[0], end=span[1]))
     text = getattr(doc, "text", "") or ""
     for match in _QUOTED_RE.finditer(text):
         span = (match.start(1), match.end(1))
         if span in seen:
             continue
         seen.add(span)
-        out.append(Candidate(text=match.group(1).strip(), label="QUOTED", start=span[0], end=span[1]))
+        out.append(
+            Candidate(text=match.group(1).strip(), label="QUOTED", start=span[0], end=span[1])
+        )
     return out
 
 

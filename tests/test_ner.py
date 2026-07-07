@@ -19,6 +19,7 @@ def test_candidates_from_doc_collects_ner_and_quoted():
     assert "Koramangala" in texts
     assert "Forum Mall" in texts
     assert "GPE" in labels and "QUOTED" in labels
+    assert all(isinstance(c, Candidate) for c in cands)
 
 
 def test_candidates_from_doc_rejects_unaccepted_labels():
@@ -33,3 +34,8 @@ def test_spacy_candidates_empty_when_model_unavailable(monkeypatch):
 
 def test_spacy_candidates_empty_for_blank_text():
     assert spacy_candidates("   ") == []
+
+
+def test_candidates_from_doc_ignores_apostrophes():
+    doc = SimpleNamespace(text="I don't know if that's true", ents=[])
+    assert candidates_from_doc(doc) == []
