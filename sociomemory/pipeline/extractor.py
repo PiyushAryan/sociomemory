@@ -64,6 +64,8 @@ _LABEL_MAP = {
 
 _DEGRADED_CONFIDENCE = 0.6
 
+_VALID_SIGNAL_VALUES = {t.value for t in SignalType}
+
 
 class SignalExtractor:
     def __init__(self, llm: BaseLLM | None = None):
@@ -136,11 +138,15 @@ class SignalExtractor:
             return self._label_heuristic(candidates, text, source, now)
         if not isinstance(data, list):
             return []
-        return [
-            self._signal_from_item(item, text, source, now)
-            for item in data
-            if self._valid_item(item)
-        ]
+        signals: list[Signal] = []
+        for item in data:
+            if not self._valid_item(item):
+                continue
+            try:
+                signals.append(self._signal_from_item(item, text, source, now))
+            except Exception as exc:  # malformed field types from the LLM
+                logger.debug("skipping malformed LLM item %r: %s", item, exc)
+        return signals
 
     def _label_heuristic(
         self,
@@ -180,7 +186,7 @@ class SignalExtractor:
         if not isinstance(item, dict):
             return False
         value = str(item.get("value", "")).strip()
-        return bool(value) and item.get("signal_type") in SignalType._value2member_map_
+        return bool(value) and item.get("signal_type") in _VALID_SIGNAL_VALUES
 
     @staticmethod
     def _signal_from_item(item: dict, text: str, source: SignalSource, now: datetime) -> Signal:
@@ -189,7 +195,10 @@ class SignalExtractor:
             confidence = max(0.0, min(1.0, float(item.get("confidence", 0.6))))
         except (TypeError, ValueError):
             confidence = 0.6
-        place_type = item.get("place_type") if signal_type == SignalType.VISIT else None
+        raw_place = item.get("place_type")
+        place_type = (
+            raw_place if (signal_type == SignalType.VISIT and isinstance(raw_place, str)) else None
+        )
         return Signal(
             raw_text=text,
             signal_type=signal_type,

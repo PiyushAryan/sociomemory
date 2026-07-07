@@ -73,15 +73,30 @@ async def test_llm_visit_dedupes_with_lane_a():
 
 
 @pytest.mark.asyncio
-async def test_llm_bad_json_returns_lane_a_only(monkeypatch):
+async def test_llm_bad_json_preserves_lane_a(monkeypatch):
     from sociomemory.pipeline import extractor as ex
 
-    # Force no spaCy candidates so bad JSON has no label-heuristic fallback input.
     monkeypatch.setattr(ex, "spacy_candidates", lambda text: [])
     llm = FakeLLM("not json at all")
     extractor = SignalExtractor(llm=llm)
-    signals = await extractor.extract("hum Koramangala mein rehte hain")
+    signals = await extractor.extract("we went to the temple today")
+    # Lane A visit survives the bad-JSON LLM path...
+    assert any(s.signal_type == SignalType.VISIT for s in signals)
+    # ...and no fabricated LOCATION comes from the junk output.
     assert all(s.signal_type != SignalType.LOCATION for s in signals)
+
+
+@pytest.mark.asyncio
+async def test_llm_malformed_place_type_does_not_raise(monkeypatch):
+    from sociomemory.pipeline import extractor as ex
+
+    monkeypatch.setattr(ex, "spacy_candidates", lambda text: [])
+    llm = FakeLLM(
+        '[{"value": "beach", "signal_type": "visit", "confidence": 0.8, "place_type": ["beach"]}]'
+    )
+    extractor = SignalExtractor(llm=llm)
+    signals = await extractor.extract("random text")  # must not raise
+    assert all(not isinstance(s.place_type, list) for s in signals)
 
 
 @pytest.mark.asyncio
