@@ -106,3 +106,46 @@ async def test_confidence_clamped():
     signals = await extractor.extract("Pune")
     loc = next(s for s in signals if s.signal_type == SignalType.LOCATION)
     assert loc.confidence == 1.0
+
+
+@pytest.mark.asyncio
+async def test_degraded_spacy_only_uses_label_map(monkeypatch):
+    from sociomemory.pipeline import extractor as ex
+    from sociomemory.pipeline.ner import Candidate
+
+    monkeypatch.setattr(
+        ex, "spacy_candidates", lambda text: [Candidate("Koramangala", "GPE", 0, 11)]
+    )
+    extractor = SignalExtractor()  # no LLM
+    signals = await extractor.extract("Koramangala")
+    loc = [s for s in signals if s.signal_type == SignalType.LOCATION]
+    assert loc and loc[0].confidence <= 0.6
+
+
+@pytest.mark.asyncio
+async def test_no_spacy_no_llm_yields_only_visits(monkeypatch):
+    from sociomemory.pipeline import extractor as ex
+
+    monkeypatch.setattr(ex, "spacy_candidates", lambda text: [])
+    extractor = SignalExtractor()  # no LLM
+    assert await extractor.extract("hum Koramangala mein rehte hain") == []
+    visits = await extractor.extract("We went to ISKCON temple")
+    assert any(s.signal_type == SignalType.VISIT for s in visits)
+
+
+@pytest.mark.asyncio
+async def test_llm_failure_falls_back_to_label_heuristic(monkeypatch):
+    from sociomemory.pipeline import extractor as ex
+    from sociomemory.pipeline.ner import Candidate
+
+    monkeypatch.setattr(
+        ex, "spacy_candidates", lambda text: [Candidate("Koramangala", "GPE", 0, 11)]
+    )
+
+    class BadLLM(FakeLLM):
+        async def complete(self, prompt: str, system: str = "", temperature: float = 0.2) -> str:
+            raise RuntimeError("boom")
+
+    extractor = SignalExtractor(llm=BadLLM(""))
+    signals = await extractor.extract("Koramangala")
+    assert any(s.signal_type == SignalType.LOCATION for s in signals)
