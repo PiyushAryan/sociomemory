@@ -7,20 +7,24 @@ import pytest
 from sociomemory.graph.edges import Edge, EdgeType
 from sociomemory.graph.memory_graph import MemoryGraph, Subgraph
 from sociomemory.graph.nodes import Node, NodeType
+from sociomemory.storage.graph_backend import GraphBackend
 from sociomemory.storage.keyword import BM25Index
-from sociomemory.storage.neo4j_backend import Neo4jBackend
 from sociomemory.storage.vector import FaissIndex
 
 
 def make_graph(child_id: str = "test_child") -> MemoryGraph:
-    neo4j = MagicMock(spec=Neo4jBackend)
-    neo4j.run = AsyncMock(return_value=[])
-    neo4j.run_write = AsyncMock(return_value=[])
-    neo4j.run_in_transaction = AsyncMock(return_value=None)
+    backend = MagicMock(spec=GraphBackend)
+    backend.merge_node = AsyncMock(return_value=None)
+    backend.merge_edge = AsyncMock(return_value=None)
+    backend.merge_subgraph = AsyncMock(return_value=None)
+    backend.get_nodes_by_type = AsyncMock(return_value=[])
+    backend.node_count = AsyncMock(return_value=0)
+    backend.edge_count = AsyncMock(return_value=0)
+    backend.get_stale_nodes = AsyncMock(return_value=[])
     faiss = MagicMock(spec=FaissIndex)
     faiss.search = MagicMock(return_value=[])
     faiss.size = 0
-    return MemoryGraph(child_id=child_id, neo4j=neo4j, faiss=faiss)
+    return MemoryGraph(child_id=child_id, backend=backend, faiss=faiss)
 
 
 def make_graph_with_keyword(child_id: str = "test_child") -> MemoryGraph:
@@ -46,22 +50,20 @@ def make_node(
 
 
 @pytest.mark.asyncio
-async def test_add_node_calls_neo4j():
+async def test_add_node_calls_backend():
     graph = make_graph()
-    graph._neo4j.run_write = AsyncMock(return_value=[])
     node = await graph.add_node(NodeType.NEIGHBORHOOD, {"name": "Koramangala"}, confidence=0.9)
     assert node.type == NodeType.NEIGHBORHOOD
     assert node.child_id == "test_child"
-    graph._neo4j.run_write.assert_called_once()
+    graph._backend.merge_node.assert_awaited_once_with(node)
 
 
 @pytest.mark.asyncio
-async def test_add_edge_calls_neo4j():
+async def test_add_edge_calls_backend():
     graph = make_graph()
-    graph._neo4j.run_write = AsyncMock(return_value=[])
     edge = await graph.add_edge("src_id", "tgt_id", EdgeType.LIVES_IN)
     assert edge.type == EdgeType.LIVES_IN
-    graph._neo4j.run_write.assert_called_once()
+    graph._backend.merge_edge.assert_awaited_once_with(edge)
 
 
 @pytest.mark.asyncio
@@ -70,7 +72,7 @@ async def test_merge_subgraph_uses_transaction():
     nodes = [make_node(NodeType.NEIGHBORHOOD, name="HSR")]
     edges = [Edge(source_id="a", target_id="b", type=EdgeType.LOCATED_IN)]
     await graph.merge_subgraph(nodes, edges)
-    graph._neo4j.run_in_transaction.assert_called_once()
+    graph._backend.merge_subgraph.assert_awaited_once_with(nodes, edges)
 
 
 @pytest.mark.asyncio
@@ -104,15 +106,15 @@ async def test_extract_context_subgraph_uses_keyword_hits():
 @pytest.mark.asyncio
 async def test_get_nodes_by_type_empty():
     graph = make_graph()
-    graph._neo4j.run = AsyncMock(return_value=[])
     result = await graph.get_nodes_by_type(NodeType.SCHOOL)
     assert result == []
+    graph._backend.get_nodes_by_type.assert_awaited_once_with("test_child", NodeType.SCHOOL)
 
 
 @pytest.mark.asyncio
 async def test_node_count():
     graph = make_graph()
-    graph._neo4j.run = AsyncMock(return_value=[{"count": 42}])
+    graph._backend.node_count = AsyncMock(return_value=42)
     count = await graph.node_count()
     assert count == 42
 
@@ -120,13 +122,9 @@ async def test_node_count():
 @pytest.mark.asyncio
 async def test_summary():
     graph = make_graph()
-    graph._neo4j.run = AsyncMock(
-        side_effect=[
-            [{"count": 10}],
-            [{"count": 20}],
-            [],
-        ]
-    )
+    graph._backend.node_count = AsyncMock(return_value=10)
+    graph._backend.edge_count = AsyncMock(return_value=20)
+    graph._backend.get_stale_nodes = AsyncMock(return_value=[])
     graph._faiss.size = 5
     result = await graph.summary()
     assert result["nodes"] == 10

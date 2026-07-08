@@ -4,13 +4,12 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from sociomemory.graph import cypher as Q
 from sociomemory.privacy.consent import ConsentManager, ConsentScope
 from sociomemory.storage.paths import storage_key
 
 if TYPE_CHECKING:
     from sociomemory.graph.memory_graph import MemoryGraph
-    from sociomemory.storage.neo4j_backend import Neo4jBackend
+    from sociomemory.storage.graph_backend import GraphBackend
 
 logger = logging.getLogger(__name__)
 
@@ -21,13 +20,13 @@ class PrivacyAPI:
     def __init__(
         self,
         consent: ConsentManager,
-        neo4j: Neo4jBackend,
+        backend: GraphBackend,
         graphs: dict[str, MemoryGraph],
         faiss_dir: Path,
         keyword_dir: Path,
     ) -> None:
         self._consent = consent
-        self._neo4j = neo4j
+        self._backend = backend
         self._graphs = graphs
         self._faiss_dir = faiss_dir
         self._keyword_dir = keyword_dir
@@ -49,7 +48,7 @@ class PrivacyAPI:
             raise PermissionError(f"Consent for {scope.value!r} is required for child {child_id!r}")
 
     async def erase(self, child_id: str) -> None:
-        await self._neo4j.run_write(Q.ERASE_CHILD, child_id=child_id)
+        await self._backend.erase_child(child_id)
         graph = self._graphs.pop(child_id, None)
         if graph is not None:
             graph.delete_local_indexes()
@@ -63,15 +62,7 @@ class PrivacyAPI:
 
     async def export_data(self, child_id: str) -> dict:
         self.require_consent(child_id, ConsentScope.EXPORT)
-        records = await self._neo4j.run(Q.GET_ALL_NODES, child_id=child_id)
-        nodes = []
-        for record in records:
-            raw = record.get("n")
-            properties = getattr(raw, "_properties", None)
-            if properties is not None:
-                raw = properties
-            if isinstance(raw, dict):
-                nodes.append(dict(raw))
+        nodes = [node.to_storage_props() for node in await self._backend.get_all_nodes(child_id)]
         return {
             "child_id": child_id,
             "consents": self._consent.get_all_consents(child_id),

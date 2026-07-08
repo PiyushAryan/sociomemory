@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -9,6 +10,7 @@ from sociomemory.config import SociomemoryConfig
 from sociomemory.graph.nodes import Node, NodeType
 from sociomemory.models.signals import Signal, SignalType
 from sociomemory.privacy.consent import ConsentScope
+from sociomemory.storage.graph_backend import GraphBackend
 
 
 def test_config_validation_has_no_filesystem_side_effect(tmp_path):
@@ -55,3 +57,23 @@ def test_opt_in_consent_enforcement_fails_closed(tmp_path):
     memory._require_signal_consent("child", SignalType.LOCATION)
     memory._cache.close()
     memory._consent.close()
+
+
+@pytest.mark.asyncio
+async def test_sociomemory_accepts_custom_graph_backend(tmp_path):
+    backend = MagicMock(spec=GraphBackend)
+    backend.connect = AsyncMock()
+    backend.init_schema = AsyncMock()
+    backend.close = AsyncMock()
+    memory = Sociomemory(
+        SociomemoryConfig(data_dir=tmp_path, llm_backend="none"),
+        graph_backend=backend,
+    )
+
+    await memory.connect()
+    await memory.close()
+
+    assert memory._backend is backend
+    backend.connect.assert_awaited_once()
+    backend.init_schema.assert_awaited_once()
+    backend.close.assert_awaited_once()

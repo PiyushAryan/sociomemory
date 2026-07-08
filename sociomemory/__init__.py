@@ -18,8 +18,8 @@ from sociomemory.privacy.api import PrivacyAPI
 from sociomemory.privacy.consent import ConsentManager, ConsentScope
 from sociomemory.providers.factory import build_providers
 from sociomemory.storage.cache import SQLiteCache
+from sociomemory.storage.graph_backend import GraphBackend
 from sociomemory.storage.keyword import BM25Index
-from sociomemory.storage.neo4j_backend import Neo4jBackend
 from sociomemory.storage.vector import FaissIndex, NullVectorIndex, VectorIndex
 
 try:
@@ -34,6 +34,7 @@ __all__ = [
     "CoachingImplication",
     "TradeOff",
     "ConsentScope",
+    "GraphBackend",
 ]
 
 
@@ -47,30 +48,41 @@ class Sociomemory:
         SignalType.INCOME: ConsentScope.INCOME_INFERENCE,
     }
 
-    def __init__(self, config: SociomemoryConfig):
+    def __init__(
+        self,
+        config: SociomemoryConfig,
+        graph_backend: GraphBackend | None = None,
+    ):
         self._config = config
-        self._neo4j = Neo4jBackend(
-            config.neo4j_uri, config.neo4j_user, config.neo4j_password, config.neo4j_database
-        )
+        if graph_backend is None:
+            from sociomemory.storage.neo4j_backend import Neo4jBackend
+
+            graph_backend = Neo4jBackend(
+                config.neo4j_uri,
+                config.neo4j_user,
+                config.neo4j_password,
+                config.neo4j_database,
+            )
+        self._backend = graph_backend
         self._cache = SQLiteCache(str(config.sqlite_path))
         self._consent = ConsentManager(str(config.sqlite_path).replace(".db", "_consent.db"))
         self._graphs: dict[str, MemoryGraph] = {}
         self._llm = None
         self.privacy = PrivacyAPI(
             consent=self._consent,
-            neo4j=self._neo4j,
+            backend=self._backend,
             graphs=self._graphs,
             faiss_dir=config.faiss_dir,
             keyword_dir=config.data_dir / "keyword",
         )
 
     async def connect(self) -> None:
-        await self._neo4j.connect()
-        await self._neo4j.init_schema()
+        await self._backend.connect()
+        await self._backend.init_schema()
         self._llm = self._build_llm()
 
     async def close(self) -> None:
-        await self._neo4j.close()
+        await self._backend.close()
         self._cache.close()
         self._consent.close()
 
@@ -101,7 +113,7 @@ class Sociomemory:
             )
             self._graphs[child_id] = MemoryGraph(
                 child_id=child_id,
-                neo4j=self._neo4j,
+                backend=self._backend,
                 faiss=faiss,
                 keyword=keyword,
                 embedder=self._llm,
@@ -269,6 +281,9 @@ class Sociomemory:
     async def get_graph(self, child_id: str) -> MemoryGraph:
         await self.ensure_child_node(child_id)
         return self._get_graph(child_id)
+
+    async def list_children(self, limit: int = 100) -> list[str]:
+        return await self._backend.list_children(limit=limit)
 
     async def get_profile(self, child_id: str) -> SocioProfile:
         graph = self._get_graph(child_id)

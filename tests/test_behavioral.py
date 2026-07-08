@@ -7,7 +7,7 @@ import pytest
 from sociomemory.engine.behavioral import BehavioralInference, _confidence
 from sociomemory.graph.memory_graph import MemoryGraph
 from sociomemory.graph.nodes import Node, NodeType
-from sociomemory.storage.neo4j_backend import Neo4jBackend
+from sociomemory.storage.graph_backend import GraphBackend
 from sociomemory.storage.vector import FaissIndex
 
 
@@ -21,9 +21,9 @@ def make_visit(place_type: str, place_subtype: str = "") -> Node:
 
 
 def make_graph(visits: list) -> MemoryGraph:
-    neo4j = MagicMock(spec=Neo4jBackend)
+    backend = MagicMock(spec=GraphBackend)
     faiss = MagicMock(spec=FaissIndex)
-    graph = MemoryGraph(child_id="test", neo4j=neo4j, faiss=faiss)
+    graph = MemoryGraph(child_id="test", backend=backend, faiss=faiss)
 
     async def get_nodes_by_type(node_type):
         if node_type == NodeType.VISIT:

@@ -54,7 +54,7 @@ class Edge(BaseModel):
 
     _normalize_datetimes = field_validator("created_at", "ttl")(ensure_utc)
 
-    def to_neo4j_props(self) -> dict[str, Any]:
+    def to_storage_props(self) -> dict[str, Any]:
         props: dict[str, Any] = {
             "id": self.id,
             "weight": self.weight,
@@ -63,3 +63,7 @@ class Edge(BaseModel):
         }
         props.update(self.properties)
         return {k: v for k, v in props.items() if v is not None}
+
+    def to_neo4j_props(self) -> dict[str, Any]:
+        """Backward-compatible alias for older integrations."""
+        return self.to_storage_props()

@@ -7,7 +7,7 @@ import pytest
 from sociomemory.engine.income import IncomeEstimator, _bracket_from_monthly
 from sociomemory.graph.memory_graph import MemoryGraph
 from sociomemory.graph.nodes import Node, NodeType
-from sociomemory.storage.neo4j_backend import Neo4jBackend
+from sociomemory.storage.graph_backend import GraphBackend
 from sociomemory.storage.vector import FaissIndex
 
 
@@ -16,9 +16,9 @@ def make_node(node_type: NodeType, **props) -> Node:
 
 
 def make_graph_with_nodes(nodes_by_type: dict) -> MemoryGraph:
-    neo4j = MagicMock(spec=Neo4jBackend)
+    backend = MagicMock(spec=GraphBackend)
     faiss = MagicMock(spec=FaissIndex)
-    graph = MemoryGraph(child_id="test", neo4j=neo4j, faiss=faiss)
+    graph = MemoryGraph(child_id="test", backend=backend, faiss=faiss)
 
     async def get_nodes_by_type(node_type):
         return nodes_by_type.get(node_type, [])

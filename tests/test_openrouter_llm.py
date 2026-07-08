@@ -24,7 +24,7 @@ def test_openrouter_client_uses_openai_compatible_base_url(monkeypatch):
         api_key="sk-or-test",
         model=DEFAULT_OPENROUTER_MODEL,
         embed_model=DEFAULT_OPENROUTER_EMBED_MODEL,
-        app_url="https://nirvanaaisutra.com",
+        app_url="https://github.com/piyusharyan/sociomemory",
         app_title="sociomemory",
     )
     llm._get_client()
@@ -32,7 +32,7 @@ def test_openrouter_client_uses_openai_compatible_base_url(monkeypatch):
     assert calls["api_key"] == "sk-or-test"
     assert calls["base_url"] == "https://openrouter.ai/api/v1"
     assert calls["default_headers"] == {
-        "HTTP-Referer": "https://nirvanaaisutra.com",
+        "HTTP-Referer": "https://github.com/piyusharyan/sociomemory",
         "X-OpenRouter-Title": "sociomemory",
     }
 

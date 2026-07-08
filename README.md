@@ -1,21 +1,19 @@
 # sociomemory
 
-**Graph memory engine for social context inference — built for VIRa AI Coach**
+**Graph memory engine for social context inference**
 
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![Neo4j](https://img.shields.io/badge/Neo4j-5.x-008CC1)
 ![FAISS](https://img.shields.io/badge/FAISS-in--process-orange)
-![License](https://img.shields.io/badge/license-Proprietary-red)
-![Patent](https://img.shields.io/badge/patent-pending-orange)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-> **⚠️ PROPRIETARY SOFTWARE — NOT FREE TO USE.**
-> sociomemory is a closed, source-available proprietary library owned by **NirvanaAIsutra Technologies Pvt. Ltd.** It is **not** open source and is **not** licensed for personal, academic, research, evaluation, internal-business, or commercial use without a signed Commercial Agreement. Possession of this package — including via PyPI, GitHub, or any mirror — grants no rights of use. One or more inventions embodied herein are **patent pending**. See [`LICENSE`](LICENSE) for full terms. To license, contact **licensing@nirvanaaisutra.com**.
+> sociomemory is released under the **MIT License**. See [`LICENSE`](LICENSE) for full terms.
 
 ---
 
 ## What is sociomemory?
 
-Children with neurodevelopmental disorders (ASD, ADHD, Dyslexia) don't arrive in a vacuum. They arrive from Koramangala or Dharavi, from CBSE schools or Anganwadis, from Infosys households or daily-wage families. An AI coach that ignores this context gives generic advice. sociomemory makes sure VIRa never does.
+Children with neurodevelopmental disorders (ASD, ADHD, Dyslexia) don't arrive in a vacuum. They arrive from Koramangala or Dharavi, from CBSE schools or Anganwadis, from Infosys households or daily-wage families. An AI coach that ignores this context gives generic advice. sociomemory makes sure agents do not.
 
 sociomemory is a **standalone, pip-installable Python library** that builds a living graph of social, economic, and cultural context around a child — inferred from sparse conversation signals. When a child says "I live in Koramangala", the library does not store a string. It traverses a knowledge graph and arrives at: upper-middle income family, IT hub neighbourhood, Kannada-speaking, outdoor parks within 2 km, Cubbon Park nearby, can afford professional OT therapy.
 
@@ -44,7 +42,8 @@ sociomemory is India-first. It ships with bundled data for Indian cities, neighb
 │   ┌────────────────────────────────────────────────────────┐    │
 │   │                   MemoryGraph                          │    │
 │   │                                                        │    │
-│   │   Neo4j (brain)        Hybrid recall                   │    │
+│   │   Graph backend        Hybrid recall                   │    │
+│   │   (Neo4j default)                                      │    │
 │   │   ┌──────────────┐     ┌────────────────────┐          │    │
 │   │   │ Nodes/Edges  │     │  FAISS embeddings  │          │    │
 │   │   │ LIVES_IN     │     │  BM25 keyword idx  │          │    │
@@ -192,6 +191,22 @@ async def main():
 asyncio.run(main())
 ```
 
+### Use another graph database
+
+Neo4j is the default adapter, not a requirement of the graph domain layer. Implement the
+backend-neutral `GraphBackend` protocol for Memgraph, ArangoDB, Amazon Neptune, or another graph
+database, then inject that adapter:
+
+```python
+from sociomemory import Sociomemory, SociomemoryConfig
+
+backend = MyGraphBackend(...)
+memory = Sociomemory(SociomemoryConfig(llm_backend="none"), graph_backend=backend)
+```
+
+Adapters own database-specific queries, transactions, schema setup, and record conversion. The
+`MemoryGraph`, privacy, reasoning, and dashboard layers only use semantic backend operations.
+
 ### Ingest a structured signal directly
 
 ```python
@@ -298,7 +313,7 @@ config = SociomemoryConfig(
 )
 ```
 
-For the dashboard:
+For the source-checkout dashboard:
 
 ```bash
 export SOCIOMEMORY_LLM_BACKEND="openrouter"
@@ -312,11 +327,12 @@ Exa results are LLM-parsed and stored in the graph with a TTL (default 24 hours)
 
 ### Browser-acquired location
 
-The local dashboard can acquire a location through the browser geolocation permission prompt and
-send latitude/longitude to the local API. Coordinates are resolved locally against
+The source-checkout dashboard can acquire a location through the browser geolocation permission
+prompt and send latitude/longitude to the local API. The dashboard is intentionally excluded from
+the PyPI wheel; install from a source checkout to run it. Coordinates are resolved locally against
 `sociomemory/data/india_cities.json` with the offline GeoPandas-compatible resolver before the normal
-location provider chain runs. If `s2sphere` is installed through `sociomemory[geo]`, the API also
-adds coarse S2 cell tokens to the signal metadata for privacy-preserving spatial indexing instead of
+location provider chain runs. If `h3` is installed through `sociomemory[geo]`, the API also adds
+coarse H3 cell tokens to the signal metadata for privacy-preserving spatial indexing instead of
 persisting raw coordinates. Set `SOCIOMEMORY_EXA_API_KEY` plus an LLM backend to add online Exa
 enrichment after the bundled offline context.
 
@@ -380,20 +396,20 @@ async with Sociomemory(config) as sm:
 
 ---
 
-## VIRa integration
+## Agent integration
 
-sociomemory plugs into VIRa at four points.
+sociomemory plugs into agent applications at four points.
 
 ### 1. System prompt enrichment
 
-Inject social context into every LLM call so VIRa always knows the family's world:
+Inject social context into every LLM call so the agent knows the family's world:
 
 ```python
 async with Sociomemory(config) as sm:
     context_block = await sm.get_context_for_llm("child_001")
 
 system_prompt = f"""
-You are VIRa, an AI coach for children with neurodevelopmental disorders.
+You are an AI coach for children with neurodevelopmental disorders.
 
 {context_block}
 
@@ -450,7 +466,7 @@ async with Sociomemory(config) as sm:
 
 ### 4. ChildProfile construction
 
-Build a complete `ChildProfile` for VIRa's domain model:
+Build a complete `ChildProfile` for your application's domain model:
 
 ```python
 async with Sociomemory(config) as sm:
@@ -506,7 +522,7 @@ This enables temporal queries like "What was the family's income estimate last y
 ### Install
 
 ```bash
-git clone https://github.com/nirvana-ai/sociomemory
+git clone https://github.com/piyusharyan/sociomemory
 cd sociomemory
 
 # Install with dev dependencies
@@ -589,6 +605,7 @@ sociomemory/
 │   ├── neo4j_backend.py Neo4jBackend  (async driver wrapper)
 │   ├── vector.py        FaissIndex  (per-child in-process FAISS index)
 │   ├── keyword.py       BM25Index  (per-child lexical keyword index)
+│   ├── graph_backend.py GraphBackend  (backend-neutral graph protocol)
 │   └── cache.py         SQLiteCache  (enrichment result cache + TTL)
 ├── llm/
 │   ├── base.py          BaseLLM  (protocol)
@@ -611,14 +628,6 @@ sociomemory/
 
 ## License
 
-**Proprietary — All Rights Reserved.** See [LICENSE](LICENSE) for the full Sociomemory Proprietary Software License Agreement.
+MIT License. See [LICENSE](LICENSE) for details.
 
-This software is **not** open source and is **not** free to use. No rights of use, copy, modification, redistribution, hosting, fine-tuning, benchmarking, or derivative work are granted by default — including for personal, academic, research, evaluation, internal-business, or commercial purposes. Use is permitted **only** under a separate signed Commercial Agreement executed with NirvanaAIsutra Technologies Pvt. Ltd.
-
-**Patent Pending.** One or more inventions embodied in this software — including methods for inferring socioeconomic and cultural context from sparse conversational signals via a graph memory engine, multi-hop inferential traversal, cascade-versioned memory, and privacy-scoped consent boundaries — are the subject of pending patent applications. No patent license is granted.
-
-**Bundled datasets** (`india_cities.json`, `india_real_estate.json`, `cultural_regions.json`, `school_boards.json`, `amenity_categories.json`) are proprietary curated compilations protected as database/compilation works. Extraction or re-use of any substantial part is expressly prohibited.
-
-For commercial, evaluation, or academic licensing inquiries: **licensing@nirvanaaisutra.com**
-
-Built by **NirvanaAIsutra** for VIRa, an AI Agentic Coach for children with ASD, ADHD, and Dyslexia. India-first.
+Built by **Piyush Aryan** for social-context-aware agents. India-first.

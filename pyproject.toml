@@ -5,17 +5,17 @@ build-backend = "hatchling.build"
 [project]
 name = "sociomemory"
 version = "0.1.0"
-description = "Graph memory engine for social context inference — built for VIRa AI Coach (proprietary, patent pending)"
+description = "Graph memory engine for social context inference"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
-authors = [{ name = "NirvanaAIsutra Pvt. Ltd.", email = "licensing@nirvanaaisutra.com" }]
-maintainers = [{ name = "Piyush Aryan", email = "piyush.aryan@nirvanaaisutra.com" }]
+authors = [{ name = "Piyush Aryan" }]
+maintainers = [{ name = "Piyush Aryan" }]
 keywords = ["memory", "graph", "neo4j", "faiss", "ai", "coaching", "ndd"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Other Audience",
-    "License :: Other/Proprietary License",
+    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
@@ -66,8 +66,8 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://nirvanaaisutra.com"
-Licensing = "mailto:licensing@nirvanaaisutra.com"
+Homepage = "https://github.com/piyusharyan/sociomemory"
+Repository = "https://github.com/piyusharyan/sociomemory"
 
 [tool.hatch.build.targets.wheel]
 packages = ["sociomemory"]

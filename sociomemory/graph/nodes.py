@@ -67,7 +67,7 @@ class Node(BaseModel):
         "document_date", "event_date", "created_at", "updated_at"
     )(ensure_utc)
 
-    def to_neo4j_props(self) -> dict[str, Any]:
+    def to_storage_props(self) -> dict[str, Any]:
         props: dict[str, Any] = {
             "id": self.id,
             "child_id": self.child_id,
@@ -84,8 +84,12 @@ class Node(BaseModel):
         props.update(self.properties)
         return {k: v for k, v in props.items() if v is not None}
 
+    def to_neo4j_props(self) -> dict[str, Any]:
+        """Backward-compatible alias for older integrations."""
+        return self.to_storage_props()
+
     @classmethod
-    def from_neo4j(cls, record: dict, node_type: NodeType, child_id: str) -> Node:
+    def from_storage(cls, record: dict, node_type: NodeType, child_id: str) -> Node:
         props = dict(record)
         node_id = props.pop("id", str(uuid.uuid4()))
         props.pop("child_id", None)
@@ -116,3 +120,8 @@ class Node(BaseModel):
             created_at=created_at,
             updated_at=updated_at,
         )
+
+    @classmethod
+    def from_neo4j(cls, record: dict, node_type: NodeType, child_id: str) -> Node:
+        """Backward-compatible alias for older integrations."""
+        return cls.from_storage(record, node_type=node_type, child_id=child_id)

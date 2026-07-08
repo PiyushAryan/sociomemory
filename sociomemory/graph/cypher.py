@@ -70,6 +70,32 @@ MATCH (n:SocioNode {child_id: $child_id})-[r]->()
 RETURN count(r) AS count
 """
 
+LIST_CHILDREN = """
+MATCH (n:SocioNode)
+WHERE n.child_id IS NOT NULL
+RETURN DISTINCT n.child_id AS child_id
+ORDER BY child_id
+LIMIT $limit
+"""
+
+EXPORT_GRAPH = """
+MATCH (n:SocioNode {child_id: $child_id})
+OPTIONAL MATCH (n)-[r]->(m:SocioNode {child_id: $child_id})
+WITH collect(DISTINCT n) AS nodes,
+     collect(DISTINCT CASE
+       WHEN r IS NULL THEN null
+       ELSE {
+         id: r.id,
+         type: type(r),
+         source: n.id,
+         target: m.id,
+         weight: coalesce(properties(r)['weight'], 1.0),
+         properties: properties(r)
+       }
+     END) AS edges
+RETURN nodes, [edge IN edges WHERE edge IS NOT NULL] AS edges
+"""
+
 
 # NOTE: Neo4j forbids parameters in the variable-length bound (`*1..$n`); the
 # depth must be a literal. Use build_traverse()/build_neighborhood() so the
@@ -98,6 +124,27 @@ def build_neighborhood(radius: int = 2) -> str:
 MATCH (n:SocioNode {{id: $node_id}})-[*1..{hops}]-(neighbor:SocioNode)
 WHERE neighbor.child_id = $child_id
 RETURN DISTINCT neighbor
+"""
+
+
+def build_traverse_export(max_depth: int = 3) -> str:
+    depth = _bounded_hops(max_depth)
+    return f"""
+MATCH path = (start:SocioNode {{id: $start_id}})-[r*1..{depth}]->(end:SocioNode)
+WHERE start.child_id = $child_id
+  AND end.child_id = $child_id
+  AND ALL(rel IN relationships(path) WHERE coalesce(properties(rel)['weight'], 1.0) >= $min_confidence)
+WITH nodes(path) AS path_nodes,
+     [rel IN relationships(path) | {{
+       id: rel.id,
+       type: type(rel),
+       source: startNode(rel).id,
+       target: endNode(rel).id,
+       weight: coalesce(properties(rel)['weight'], 1.0),
+       properties: properties(rel)
+     }}] AS path_rels
+RETURN path_nodes AS nodes, path_rels AS edges
+LIMIT $limit
 """
 
 
