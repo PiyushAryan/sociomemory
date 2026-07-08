@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0] - 2026-07-08
 
 ### Added
+- spaCy entity pre-pass and LLM-typed signal extraction replacing the regex extractor,
+  with graceful degradation when spaCy or an LLM backend is unavailable (`nlp` extra).
+- Consent-scope mappings for housing, dietary, language, transport, family-structure,
+  sensory, lifestyle, and generic signals.
 - `NodeType.CIVIC` as an allowed target of `NEIGHBORHOOD --HAS_CONTEXT-->` in the graph schema.
 - `ECONOMIC --DERIVES--> INCOME` edge in the graph schema.
 - BM25 keyword recall with persistent per-child indexes and FAISS-free fallback behavior.

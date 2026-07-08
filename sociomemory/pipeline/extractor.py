@@ -116,6 +116,9 @@ class SignalExtractor:
         source: SignalSource,
         now: datetime,
     ) -> list[Signal]:
+        llm = self._llm
+        if llm is None:
+            return self._label_heuristic(candidates, text, source, now)
         hints = ", ".join(sorted({c.text for c in candidates})) or "(none)"
         types = "/".join(t.value for t in SignalType)
         system = (
@@ -132,7 +135,7 @@ class SignalExtractor:
             f"Text: {text}\n\nJSON:"
         )
         try:
-            resp = await self._llm.complete(prompt, system=system, temperature=0.1)
+            resp = await llm.complete(prompt, system=system, temperature=0.1)
             data = json.loads(self._strip_fences(resp))
         except Exception as exc:
             logger.debug("LLM typing failed: %s", exc)
