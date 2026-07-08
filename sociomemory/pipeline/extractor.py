@@ -78,13 +78,14 @@ class SignalExtractor:
         signals: list[Signal] = []
         # Lane A: offline place/visit keyword scan.
         signals.extend(self._extract_visit(text, source, now))
-        # Lane B: optional spaCy candidate hints.
-        candidates = spacy_candidates(text)
-        # Lane C: LLM discovery + typing (primary), or degraded label heuristic.
-        if self._llm:
-            signals.extend(await self._llm_type_entities(text, candidates, source, now))
-        else:
-            signals.extend(self._label_heuristic(candidates, text, source, now))
+        if text.strip():
+            # Lane B: optional spaCy candidate hints.
+            candidates = spacy_candidates(text)
+            # Lane C: LLM discovery + typing (primary), or degraded label heuristic.
+            if self._llm:
+                signals.extend(await self._llm_type_entities(text, candidates, source, now))
+            else:
+                signals.extend(self._label_heuristic(candidates, text, source, now))
         return self._dedup(signals)
 
     def _extract_visit(self, text: str, source: SignalSource, now: datetime) -> list[Signal]:
@@ -137,6 +138,7 @@ class SignalExtractor:
             logger.debug("LLM typing failed: %s", exc)
             return self._label_heuristic(candidates, text, source, now)
         if not isinstance(data, list):
+            # Parseable but off-contract shape: not a failure — Lane A signals still stand.
             return []
         signals: list[Signal] = []
         for item in data:
@@ -186,19 +188,26 @@ class SignalExtractor:
         if not isinstance(item, dict):
             return False
         value = str(item.get("value", "")).strip()
-        return bool(value) and item.get("signal_type") in _VALID_SIGNAL_VALUES
+        signal_type = str(item.get("signal_type", "")).strip().lower()
+        return bool(value) and signal_type in _VALID_SIGNAL_VALUES
 
     @staticmethod
     def _signal_from_item(item: dict, text: str, source: SignalSource, now: datetime) -> Signal:
-        signal_type = SignalType(item["signal_type"])
+        signal_type = SignalType(str(item["signal_type"]).strip().lower())
         try:
             confidence = max(0.0, min(1.0, float(item.get("confidence", 0.6))))
         except (TypeError, ValueError):
             confidence = 0.6
-        raw_place = item.get("place_type")
-        place_type = (
-            raw_place if (signal_type == SignalType.VISIT and isinstance(raw_place, str)) else None
-        )
+        place_type: str | None = None
+        place_subtype: str | None = None
+        if signal_type == SignalType.VISIT:
+            raw_place = item.get("place_type")
+            if isinstance(raw_place, str) and raw_place.strip():
+                mapped = PLACE_TYPES.get(raw_place.strip().lower())
+                if mapped:
+                    place_type, place_subtype = mapped
+                else:
+                    place_type = raw_place.strip()
         return Signal(
             raw_text=text,
             signal_type=signal_type,
@@ -207,6 +216,7 @@ class SignalExtractor:
             source=source,
             timestamp=now,
             place_type=place_type,
+            place_subtype=place_subtype,
         )
 
     @staticmethod
@@ -222,6 +232,12 @@ class SignalExtractor:
             if current is None:
                 best[key] = signal
             elif signal.confidence > current.confidence:
+                if (
+                    signal.signal_type == SignalType.VISIT
+                    and current.place_subtype
+                    and not signal.place_subtype
+                ):
+                    signal = signal.model_copy(update={"place_subtype": current.place_subtype})
                 best[key] = signal
             elif (
                 signal.confidence == current.confidence

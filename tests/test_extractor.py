@@ -149,3 +149,71 @@ async def test_llm_failure_falls_back_to_label_heuristic(monkeypatch):
     extractor = SignalExtractor(llm=BadLLM(""))
     signals = await extractor.extract("Koramangala")
     assert any(s.signal_type == SignalType.LOCATION for s in signals)
+
+
+@pytest.mark.asyncio
+async def test_iskcon_subtype_preserved_with_llm(monkeypatch):
+    from sociomemory.pipeline import extractor as ex
+
+    monkeypatch.setattr(ex, "spacy_candidates", lambda text: [])
+    llm = FakeLLM(
+        '[{"value":"temple","signal_type":"visit","confidence":0.95,"place_type":"temple"}]'
+    )
+    extractor = SignalExtractor(llm=llm)
+    signals = await extractor.extract("We went to ISKCON temple")
+    visits = [s for s in signals if s.signal_type == SignalType.VISIT and s.place_type == "temple"]
+    assert len(visits) == 1
+    assert visits[0].place_subtype == "iskcon"
+
+
+@pytest.mark.asyncio
+async def test_llm_place_type_normalized_via_place_types(monkeypatch):
+    from sociomemory.pipeline import extractor as ex
+
+    monkeypatch.setattr(ex, "spacy_candidates", lambda text: [])
+    llm = FakeLLM(
+        '[{"value":"iskcon","signal_type":"visit","confidence":0.9,"place_type":"iskcon"}]'
+    )
+    extractor = SignalExtractor(llm=llm)
+    signals = await extractor.extract("random text with no place keyword")
+    visits = [s for s in signals if s.signal_type == SignalType.VISIT]
+    assert len(visits) == 1
+    assert visits[0].place_type == "temple" and visits[0].place_subtype == "iskcon"
+
+
+@pytest.mark.asyncio
+async def test_llm_discovers_non_keyword_visit(monkeypatch):
+    from sociomemory.pipeline import extractor as ex
+
+    monkeypatch.setattr(ex, "spacy_candidates", lambda text: [])
+    llm = FakeLLM(
+        '[{"value":"Golconda Fort","signal_type":"visit","confidence":0.8,"place_type":"fort"}]'
+    )
+    extractor = SignalExtractor(llm=llm)
+    signals = await extractor.extract("we saw Golconda Fort yesterday")
+    assert any(s.signal_type == SignalType.VISIT and s.place_type == "fort" for s in signals)
+
+
+@pytest.mark.asyncio
+async def test_llm_handles_json_code_fence(monkeypatch):
+    from sociomemory.pipeline import extractor as ex
+
+    monkeypatch.setattr(ex, "spacy_candidates", lambda text: [])
+    payload = '```json\n[{"value": "Pune", "signal_type": "location", "confidence": 0.9}]\n```'
+    llm = FakeLLM(payload)
+    extractor = SignalExtractor(llm=llm)
+    signals = await extractor.extract("x")
+    assert any(
+        s.signal_type == SignalType.LOCATION and s.extracted_value == "Pune" for s in signals
+    )
+
+
+@pytest.mark.asyncio
+async def test_llm_signal_type_case_insensitive(monkeypatch):
+    from sociomemory.pipeline import extractor as ex
+
+    monkeypatch.setattr(ex, "spacy_candidates", lambda text: [])
+    llm = FakeLLM('[{"value": "Pune", "signal_type": "LOCATION", "confidence": 0.9}]')
+    extractor = SignalExtractor(llm=llm)
+    signals = await extractor.extract("x")
+    assert any(s.signal_type == SignalType.LOCATION for s in signals)
