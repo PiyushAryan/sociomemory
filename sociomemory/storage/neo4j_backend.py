@@ -189,7 +189,9 @@ class Neo4jBackend:
             node_id=node_id,
             child_id=child_id,
         )
-        nodes = [self._parse_node(record["neighbor"]) for record in records if record.get("neighbor")]
+        nodes = [
+            self._parse_node(record["neighbor"]) for record in records if record.get("neighbor")
+        ]
         return GraphSnapshot(nodes=nodes)
 
     async def find_inference_chains(

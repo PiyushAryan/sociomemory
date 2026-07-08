@@ -26,7 +26,7 @@ async def test_merge_node_translates_domain_node_to_cypher_params():
 
     await backend.merge_node(node)
 
-    query, = backend.run_write.call_args.args
+    (query,) = backend.run_write.call_args.args
     params = backend.run_write.call_args.kwargs
     assert query == Q.MERGE_NODE
     assert params["id"] == "node-1"
@@ -62,9 +62,7 @@ async def test_export_graph_returns_backend_neutral_snapshot():
         "weight": 1.0,
         "properties": {},
     }
-    backend.run = AsyncMock(
-        return_value=[{"nodes": [node.to_storage_props()], "edges": [edge]}]
-    )
+    backend.run = AsyncMock(return_value=[{"nodes": [node.to_storage_props()], "edges": [edge]}])
 
     snapshot = await backend.export_graph("child-1")
 
