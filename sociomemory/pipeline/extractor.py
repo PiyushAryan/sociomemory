@@ -1,32 +1,18 @@
 from __future__ import annotations
 
+import json
 import logging
-import re
 from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sociomemory.models.signals import Signal, SignalSource, SignalType
+from sociomemory.pipeline.ner import Candidate, spacy_candidates
 from sociomemory.time import utc_now
 
 if TYPE_CHECKING:
     from sociomemory.llm.base import BaseLLM
 
 logger = logging.getLogger(__name__)
-
-LOCATION_PATTERNS = [
-    r"(?:i live|we live|staying|stay|residing|house|home|flat|apartment)\s+(?:in|at|near)\s+([A-Z][a-zA-Z\s,]+)",
-    r"(?:my|our)\s+(?:area|locality|neighborhood|neighbourhood|colony)\s+(?:is|in)\s+([A-Z][a-zA-Z\s,]+)",
-]
-
-SCHOOL_PATTERNS = [
-    r"(?:goes?|going|study|studies|attending)\s+(?:to\s+)?([A-Z][a-zA-Z\s]+(?:School|Academy|Institute|Vidyalaya|Convent|Public|International))",
-    r"(?:school|college)\s+(?:is|name is|called)\s+([A-Z][a-zA-Z\s]+)",
-]
-
-PROFESSION_PATTERNS = [
-    r"(?:papa|dad|father|mummy|mom|mother|parent)\s+(?:works?|working|job|employed)\s+(?:at|in|for)\s+([A-Z][a-zA-Z\s]+)",
-    r"(?:papa|dad|father|mummy|mom|mother)\s+(?:is\s+(?:a|an)\s+)?([a-zA-Z\s]+(?:engineer|doctor|teacher|manager|developer|analyst|officer|director|consultant|accountant))",
-]
 
 # keyword -> (place_type, place_subtype). place_type is the SPECIFIC type that
 # the builder, behavioral inference, and temporal pattern detection key on;
@@ -48,7 +34,6 @@ PLACE_TYPES = {
     "water park": ("water_park", None),
     "snow park": ("snow_park", None),
     "library": ("library", None),
-    # transit & everyday public places (web-enriched downstream)
     "metro station": ("metro_station", None),
     "metro": ("metro_station", None),
     "railway station": ("railway_station", None),
@@ -67,6 +52,20 @@ PLACE_TYPES = {
     "aquarium": ("aquarium", None),
 }
 
+# Degraded mode only (spaCy present, LLM absent): map ONLY unambiguous labels.
+# ORG (school vs employer), PERSON (parent vs teacher vs friend), and NORP
+# (nationality vs religion) are deliberately excluded — guessing their role
+# without the LLM plants wrong signals.
+_LABEL_MAP = {
+    "GPE": SignalType.LOCATION,
+    "LOC": SignalType.LOCATION,
+    "LANGUAGE": SignalType.LANGUAGE,
+}
+
+_DEGRADED_CONFIDENCE = 0.6
+
+_VALID_SIGNAL_VALUES = {t.value for t in SignalType}
+
 
 class SignalExtractor:
     def __init__(self, llm: BaseLLM | None = None):
@@ -75,75 +74,22 @@ class SignalExtractor:
     async def extract(
         self, text: str, source: SignalSource = SignalSource.CONVERSATION
     ) -> list[Signal]:
-        signals: list[Signal] = []
         now = utc_now()
-        signals.extend(self._extract_location(text, source, now))
-        signals.extend(self._extract_school(text, source, now))
-        signals.extend(self._extract_profession(text, source, now))
+        signals: list[Signal] = []
+        # Lane A: offline place/visit keyword scan.
         signals.extend(self._extract_visit(text, source, now))
-        if self._llm and not signals:
-            signals.extend(await self._llm_extract(text, source, now))
-        return signals
-
-    def _extract_location(self, text: str, source: SignalSource, now: datetime) -> list[Signal]:
-        results = []
-        for pattern in LOCATION_PATTERNS:
-            for match in re.finditer(pattern, text, re.IGNORECASE):
-                val = match.group(1).strip().rstrip(",. ")
-                if len(val) >= 3:
-                    results.append(
-                        Signal(
-                            raw_text=text,
-                            signal_type=SignalType.LOCATION,
-                            extracted_value=val,
-                            confidence=0.85,
-                            source=source,
-                            timestamp=now,
-                        )
-                    )
-        return results
-
-    def _extract_school(self, text: str, source: SignalSource, now: datetime) -> list[Signal]:
-        results = []
-        for pattern in SCHOOL_PATTERNS:
-            for match in re.finditer(pattern, text, re.IGNORECASE):
-                val = match.group(1).strip()
-                if len(val) >= 3:
-                    results.append(
-                        Signal(
-                            raw_text=text,
-                            signal_type=SignalType.SCHOOL,
-                            extracted_value=val,
-                            confidence=0.9,
-                            source=source,
-                            timestamp=now,
-                        )
-                    )
-        return results
-
-    def _extract_profession(self, text: str, source: SignalSource, now: datetime) -> list[Signal]:
-        results = []
-        for pattern in PROFESSION_PATTERNS:
-            for match in re.finditer(pattern, text, re.IGNORECASE):
-                val = match.group(1).strip()
-                if len(val) >= 3:
-                    results.append(
-                        Signal(
-                            raw_text=text,
-                            signal_type=SignalType.PARENT_PROFESSION,
-                            extracted_value=val,
-                            confidence=0.8,
-                            source=source,
-                            timestamp=now,
-                        )
-                    )
-        return results
+        if text.strip():
+            # Lane B: optional spaCy candidate hints.
+            candidates = spacy_candidates(text)
+            # Lane C: LLM discovery + typing (primary), or degraded label heuristic.
+            if self._llm:
+                signals.extend(await self._llm_type_entities(text, candidates, source, now))
+            else:
+                signals.extend(self._label_heuristic(candidates, text, source, now))
+        return self._dedup(signals)
 
     def _extract_visit(self, text: str, source: SignalSource, now: datetime) -> list[Signal]:
         text_lower = text.lower()
-        # Collapse overlapping keywords (e.g. "iskcon temple" matches both
-        # "iskcon" and "temple") into one signal per place_type, preferring the
-        # entry that carries a refinement subtype.
         by_type: dict[str, Signal] = {}
         for keyword, (place_type, subtype) in PLACE_TYPES.items():
             if keyword not in text_lower:
@@ -163,32 +109,140 @@ class SignalExtractor:
             )
         return list(by_type.values())
 
-    async def _llm_extract(self, text: str, source: SignalSource, now: datetime) -> list[Signal]:
-        if not self._llm:
-            return []
+    async def _llm_type_entities(
+        self,
+        text: str,
+        candidates: list[Candidate],
+        source: SignalSource,
+        now: datetime,
+    ) -> list[Signal]:
+        hints = ", ".join(sorted({c.text for c in candidates})) or "(none)"
+        types = "/".join(t.value for t in SignalType)
+        system = (
+            "You extract socioeconomic signals about a child and family from short, "
+            "often code-mixed (Hindi/English) text. Reply with ONLY a JSON array."
+        )
         prompt = (
-            "Extract socioeconomic signals from this text. Reply with JSON array of objects with fields: "
-            "signal_type (location/school/profession/visit/language/family), extracted_value, confidence (0-1).\n\n"
+            f"Candidate entities already detected: {hints}\n"
+            "Classify each candidate that is a socioeconomic signal, AND add any "
+            "signals present in the text that are not in the candidate list.\n"
+            f'Each object: {{"value": str, "signal_type": one of [{types}], '
+            '"confidence": 0-1, "place_type": optional str for visits}}.\n'
+            "Omit anything that is not a real signal.\n\n"
             f"Text: {text}\n\nJSON:"
         )
         try:
-            import json
+            resp = await self._llm.complete(prompt, system=system, temperature=0.1)
+            data = json.loads(self._strip_fences(resp))
+        except Exception as exc:
+            logger.debug("LLM typing failed: %s", exc)
+            return self._label_heuristic(candidates, text, source, now)
+        if not isinstance(data, list):
+            # Parseable but off-contract shape: not a failure — Lane A signals still stand.
+            return []
+        signals: list[Signal] = []
+        for item in data:
+            if not self._valid_item(item):
+                continue
+            try:
+                signals.append(self._signal_from_item(item, text, source, now))
+            except Exception as exc:  # malformed field types from the LLM
+                logger.debug("skipping malformed LLM item %r: %s", item, exc)
+        return signals
 
-            resp = await self._llm.complete(prompt, temperature=0.1)
-            resp = resp.strip().strip("```json").strip("```").strip()
-            data = json.loads(resp)
-            return [
+    def _label_heuristic(
+        self,
+        candidates: list[Candidate],
+        text: str,
+        source: SignalSource,
+        now: datetime,
+    ) -> list[Signal]:
+        out: list[Signal] = []
+        for cand in candidates:
+            signal_type = _LABEL_MAP.get(cand.label)
+            if signal_type is None:
+                continue
+            out.append(
                 Signal(
                     raw_text=text,
-                    signal_type=SignalType(item.get("signal_type", "generic")),
-                    extracted_value=str(item.get("extracted_value", "")),
-                    confidence=float(item.get("confidence", 0.5)),
+                    signal_type=signal_type,
+                    extracted_value=cand.text,
+                    confidence=_DEGRADED_CONFIDENCE,
                     source=source,
                     timestamp=now,
                 )
-                for item in data
-                if item.get("extracted_value")
-            ]
-        except Exception as exc:
-            logger.debug("LLM extraction failed: %s", exc)
-            return []
+            )
+        return out
+
+    @staticmethod
+    def _strip_fences(resp: str) -> str:
+        resp = resp.strip()
+        if resp.startswith("```"):
+            resp = resp.split("\n", 1)[-1] if "\n" in resp else resp[3:]
+            if resp.rstrip().endswith("```"):
+                resp = resp.rstrip()[:-3]
+        return resp.strip()
+
+    @staticmethod
+    def _valid_item(item) -> bool:
+        if not isinstance(item, dict):
+            return False
+        value = str(item.get("value", "")).strip()
+        signal_type = str(item.get("signal_type", "")).strip().lower()
+        return bool(value) and signal_type in _VALID_SIGNAL_VALUES
+
+    @staticmethod
+    def _signal_from_item(item: dict, text: str, source: SignalSource, now: datetime) -> Signal:
+        signal_type = SignalType(str(item["signal_type"]).strip().lower())
+        try:
+            confidence = max(0.0, min(1.0, float(item.get("confidence", 0.6))))
+        except (TypeError, ValueError):
+            confidence = 0.6
+        place_type: str | None = None
+        place_subtype: str | None = None
+        if signal_type == SignalType.VISIT:
+            raw_place = item.get("place_type")
+            if isinstance(raw_place, str) and raw_place.strip():
+                mapped = PLACE_TYPES.get(raw_place.strip().lower())
+                if mapped:
+                    place_type, place_subtype = mapped
+                else:
+                    place_type = raw_place.strip()
+        return Signal(
+            raw_text=text,
+            signal_type=signal_type,
+            extracted_value=str(item["value"]).strip(),
+            confidence=confidence,
+            source=source,
+            timestamp=now,
+            place_type=place_type,
+            place_subtype=place_subtype,
+        )
+
+    @staticmethod
+    def _dedup(signals: list[Signal]) -> list[Signal]:
+        best: dict[tuple[SignalType, str], Signal] = {}
+        for signal in signals:
+            if signal.signal_type == SignalType.VISIT:
+                key_value = (signal.place_type or signal.extracted_value or "").lower()
+            else:
+                key_value = (signal.extracted_value or "").strip().lower()
+            key = (signal.signal_type, key_value)
+            current = best.get(key)
+            if current is None:
+                best[key] = signal
+            elif signal.confidence > current.confidence:
+                if (
+                    signal.signal_type == SignalType.VISIT
+                    and current.place_subtype
+                    and not signal.place_subtype
+                ):
+                    signal = signal.model_copy(update={"place_subtype": current.place_subtype})
+                best[key] = signal
+            elif (
+                signal.confidence == current.confidence
+                and signal.place_subtype
+                and not current.place_subtype
+            ):
+                best[key] = signal
+        return list(best.values())

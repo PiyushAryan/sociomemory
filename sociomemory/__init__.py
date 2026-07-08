@@ -46,6 +46,14 @@ class Sociomemory:
         SignalType.VISIT: ConsentScope.BEHAVIORAL_PROFILING,
         SignalType.RELIGIOUS: ConsentScope.RELIGIOUS_CONTEXT,
         SignalType.INCOME: ConsentScope.INCOME_INFERENCE,
+        SignalType.HOUSING: ConsentScope.INCOME_INFERENCE,
+        SignalType.DIETARY: ConsentScope.RELIGIOUS_CONTEXT,
+        SignalType.LANGUAGE: ConsentScope.BEHAVIORAL_PROFILING,
+        SignalType.TRANSPORT: ConsentScope.BEHAVIORAL_PROFILING,
+        SignalType.FAMILY_STRUCTURE: ConsentScope.BEHAVIORAL_PROFILING,
+        SignalType.SENSORY: ConsentScope.BEHAVIORAL_PROFILING,
+        SignalType.LIFESTYLE: ConsentScope.BEHAVIORAL_PROFILING,
+        SignalType.GENERIC: ConsentScope.BEHAVIORAL_PROFILING,
     }
 
     def __init__(
