@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import { createRoot } from "react-dom/client";
+import { BrowserRouter, Link, useLocation, useNavigate } from "react-router-dom";
 import "./styles.css";
 
 const INITIAL_CHILD_ID = "Piyush";
@@ -364,6 +365,10 @@ function DashboardTokenControl({ token, setToken }) {
 }
 
 function App() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const routeView =
+    location.pathname === "/graph" ? "graph" : location.pathname === "/" ? "overview" : "not-found";
   const [childId, setChildId] = useState(INITIAL_CHILD_ID);
   const [draftChildId, setDraftChildId] = useState(INITIAL_CHILD_ID);
   const [dashboardToken, setDashboardToken] = useState(
@@ -395,7 +400,6 @@ function App() {
     const saved = localStorage.getItem("sociomemory-theme");
     return saved === "greenish-white" || saved === "greenish-black" ? saved : "greenish-white";
   });
-  const [view, setView] = useState("overview");
 
   useEffect(() => {
     const root = document.documentElement;
@@ -439,6 +443,12 @@ function App() {
   useEffect(() => {
     loadGraph(childId);
   }, [childId]);
+
+  useEffect(() => {
+    if (routeView !== "graph") return;
+    const timer = window.setTimeout(() => loadGraph(childId), 300);
+    return () => window.clearTimeout(timer);
+  }, [dashboardToken, routeView]);
 
   async function loadGraph(nextChildId = childId) {
     setStatus("Loading graph...");
@@ -595,13 +605,16 @@ function App() {
   }
 
   function openGraph() {
-    setView("graph");
-    loadGraph(childId);
+    navigate("/graph");
+  }
+
+  if (routeView === "not-found") {
+    return <NotFound />;
   }
 
   return (
     <div className="min-h-screen flex flex-col bg-bg text-ink">
-      {view === "overview" ? (
+      {routeView === "overview" ? (
         <Overview
           summary={summary}
           nodes={graph.nodes}
@@ -611,14 +624,14 @@ function App() {
           dashboardToken={dashboardToken}
           setDashboardToken={setDashboardToken}
           onOpenGraph={openGraph}
-          onInspect={(id) => { setView("graph"); selectNode(id); }}
+          onInspect={(id) => { navigate("/graph"); selectNode(id); }}
           onRefresh={() => loadGraph(childId)}
         />
       ) : (
       <>
       <header className="topbar z-50">
         <div className="flex items-center gap-4">
-          <button type="button" className="arrow-link" onClick={() => setView("overview")} title="Back to overview"><span aria-hidden="true">&larr;</span> Overview</button>
+          <button type="button" className="arrow-link" onClick={() => navigate("/")} title="Back to overview"><span aria-hidden="true">&larr;</span> Overview</button>
           <div className="hidden sm:block w-px h-8 bg-line" />
           <div>
             <h1 className="text-lg font-bold flex items-center tracking-tight"><Icon.Brain />sociomemory</h1>
@@ -859,6 +872,23 @@ function Metric({ label, value }) {
     <div className="metric">
       <dt className="metric-label">{label}</dt>
       <dd className="metric-value">{value ?? "-"}</dd>
+    </div>
+  );
+}
+
+function NotFound() {
+  return (
+    <div className="min-h-screen grid place-items-center bg-bg text-ink p-6">
+      <main className="w-full max-w-md border border-line bg-panel p-8">
+        <div className="eyebrow text-[10px]">sociomemory · missing node</div>
+        <h1 className="text-7xl font-extrabold tracking-tighter leading-none mt-3 mb-4">404</h1>
+        <p className="text-muted text-sm leading-relaxed mb-6">
+          This route is not part of the public demo graph. Return to the dashboard to explore the seeded memory layer.
+        </p>
+        <Link to="/" className="btn btn-primary h-10 px-4">
+          Back to dashboard
+        </Link>
+      </main>
     </div>
   );
 }
@@ -2580,4 +2610,8 @@ function errorToText(error) {
   return error instanceof Error ? error.message : String(error);
 }
 
-createRoot(document.getElementById("root")).render(<App />);
+createRoot(document.getElementById("root")).render(
+  <BrowserRouter>
+    <App />
+  </BrowserRouter>,
+);
