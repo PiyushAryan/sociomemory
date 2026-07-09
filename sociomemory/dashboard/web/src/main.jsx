@@ -594,6 +594,11 @@ function App() {
     setFilters({ type: "", sensitivity: "", minConfidence: 0, staleOnly: false });
   }
 
+  function openGraph() {
+    setView("graph");
+    loadGraph(childId);
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-bg text-ink">
       {view === "overview" ? (
@@ -605,7 +610,7 @@ function App() {
           setTheme={setTheme}
           dashboardToken={dashboardToken}
           setDashboardToken={setDashboardToken}
-          onOpenGraph={() => setView("graph")}
+          onOpenGraph={openGraph}
           onInspect={(id) => { setView("graph"); selectNode(id); }}
           onRefresh={() => loadGraph(childId)}
         />
