@@ -5,6 +5,8 @@ __pycache__/
 venv/
 node_modules/
 dist/
+sociomemory/dashboard/web/node_modules/
+sociomemory/dashboard/web/dist/
 build/
 *.egg-info/
 .pytest_cache/
@@ -27,8 +29,5 @@ build/
 .vscode/
 .claude/
 /docs/
-# not part of the pip package
-sociomemory/dashboard/
-tests/test_dashboard_export.py
 CLAUDE.md
 AGENTS.md

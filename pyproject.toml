@@ -24,6 +24,7 @@ classifiers = [
 ]
 
 dependencies = [
+    "fastapi[standard]>=0.115.0",
     "neo4j>=5.0.0",
     "pydantic>=2.0.0",
     "numpy>=1.24.0",
@@ -77,6 +78,9 @@ exclude = ["sociomemory/tests", "sociomemory/dashboard", "sociomemory/**/__pycac
 
 [tool.hatch.build.targets.sdist]
 exclude = [".venv", ".pytest_cache", ".ruff_cache", "dist", "build", "*.egg-info", "arch.png", ".DS_Store"]
+
+[tool.fastapi]
+entrypoint = "sociomemory.dashboard.api:app"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

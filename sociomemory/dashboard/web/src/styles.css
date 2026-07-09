@@ -1,0 +1,576 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-active: var(--line-active);
+  --color-accent: var(--accent);
+  --color-primary: var(--primary);
+  --color-danger: var(--danger);
+  --color-warn: var(--warn);
+  --color-ok: var(--ok);
+  --color-edge: var(--edge-color);
+  --color-edge-label: var(--edge-label-fill);
+
+  --animate-spin-reverse: spin-reverse 1s linear infinite;
+
+  @keyframes spin-reverse {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(-360deg); }
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Design tokens — x-arc.ai inspired premium aesthetic: crisp near-black/white ink,
+   neutral hairline glass borders, glowing accents, soft premium shadows,
+   and clean modern layouts. Nightly theme is default.
+--------------------------------------------------------------------------- */
+:root {
+  color-scheme: light;
+  --bg: #f4faf6;
+  --panel: rgba(255, 255, 255, 0.7);
+  --panel-solid: #ffffff;
+  --ink: #051a0e;
+  --muted: #4e6659;
+  --line: rgba(5, 26, 14, 0.09);
+  --line-active: #047857;
+  --accent: #059669;
+  --primary: #10b981;
+  --danger: #dc2626;
+  --warn: #d97706;
+  --ok: #059669;
+
+  --node-label-fill: #051a0e;
+  --node-label-stroke: #ffffff;
+  --edge-color: rgba(5, 26, 14, 0.15);
+  --edge-label-fill: #4e6659;
+  --grid-dot: rgba(5, 26, 14, 0.05);
+
+  --ring: 0 0 0 3px rgba(5, 150, 105, 0.18);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 12px 24px -8px rgba(5, 26, 14, 0.1);
+}
+
+:root[data-theme="greenish-black"],
+body.theme-greenish-black {
+  color-scheme: dark;
+  --bg: #060b08;
+  --panel: rgba(13, 22, 17, 0.6);
+  --panel-solid: #0d1611;
+  --ink: #f0fdf4;
+  --muted: #789082;
+  --line: rgba(240, 253, 244, 0.08);
+  --line-active: #10b981;
+  --accent: #10b981;
+  --primary: #059669;
+  --danger: #ef4444;
+  --warn: #f59e0b;
+  --ok: #10b981;
+
+  --node-label-fill: #f0fdf4;
+  --node-label-stroke: #060b08;
+  --edge-color: rgba(240, 253, 244, 0.16);
+  --edge-label-fill: #789082;
+  --grid-dot: rgba(16, 185, 129, 0.04);
+
+  --ring: 0 0 0 3px rgba(16, 185, 129, 0.25);
+  --shadow-sm: 0 2px 8px -2px rgba(0, 0, 0, 0.6);
+  --shadow-md: 0 20px 40px -15px rgba(0, 0, 0, 0.9);
+}
+
+:root[data-theme="greenish-white"],
+body.theme-greenish-white {
+  color-scheme: light;
+  --bg: #f4faf6;
+  --panel: rgba(255, 255, 255, 0.7);
+  --panel-solid: #ffffff;
+  --ink: #051a0e;
+  --muted: #4e6659;
+  --line: rgba(5, 26, 14, 0.09);
+  --line-active: #047857;
+  --accent: #059669;
+  --primary: #10b981;
+  --danger: #dc2626;
+  --warn: #d97706;
+  --ok: #059669;
+
+  --node-label-fill: #051a0e;
+  --node-label-stroke: #ffffff;
+  --edge-color: rgba(5, 26, 14, 0.15);
+  --edge-label-fill: #4e6659;
+  --grid-dot: rgba(5, 26, 14, 0.05);
+
+  --ring: 0 0 0 3px rgba(5, 150, 105, 0.18);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 12px 24px -8px rgba(5, 26, 14, 0.1);
+}
+
+html,
+body,
+#root {
+  font-family: var(--font-sans);
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  scroll-behavior: smooth;
+}
+
+code,
+pre,
+.font-mono {
+  font-family: var(--font-mono) !important;
+  font-feature-settings: "tnum" 1, "zero" 1;
+}
+
+/* Thin, restrained scrollbars to match the minimal aesthetic */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--line); border-radius: 0; }
+*::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* ---------------------------------------------------------------------------
+   Component layer — the x-arc.ai visual language expressed as reusable parts.
+--------------------------------------------------------------------------- */
+@layer components {
+  .topbar {
+    @apply h-16 flex items-center justify-between gap-5 px-6;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* Monospace, uppercase, wide-tracked micro-label — the signature Arc detail */
+  .eyebrow {
+    font-family: var(--font-mono);
+    @apply text-[10px] font-semibold uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+  }
+
+  .label {
+    font-family: var(--font-mono);
+    @apply text-[10px] font-semibold uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+  }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 0;
+    @apply p-4 flex flex-col;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+  .card:hover {
+    box-shadow: var(--shadow-md);
+    border-color: color-mix(in srgb, var(--ink) 12%, var(--line));
+  }
+  .flush { padding: 0 !important; }
+
+  .card-head {
+    @apply flex items-center justify-between gap-2 mb-3.5;
+  }
+  .card-title {
+    @apply flex items-center gap-2 m-0 text-xs font-bold uppercase text-ink;
+    letter-spacing: 0.06em;
+  }
+  .sec-index {
+    font-family: var(--font-mono);
+    @apply text-[10px] font-bold;
+    color: var(--accent);
+  }
+
+  .field {
+    @apply w-full h-8 px-2.5 text-xs text-ink outline-none;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 0;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .field::placeholder { color: var(--muted); opacity: 0.7; }
+  .field:focus { border-color: var(--line-active); box-shadow: var(--ring); }
+  textarea.field { @apply h-auto py-2 leading-relaxed resize-y; }
+
+  .token-state {
+    font-family: var(--font-mono);
+    @apply shrink-0 text-[9px] font-bold uppercase px-1.5 py-1 border;
+    color: var(--danger);
+    border-color: color-mix(in srgb, var(--danger) 30%, var(--line));
+    background: color-mix(in srgb, var(--danger) 7%, transparent);
+    letter-spacing: 0.08em;
+  }
+  .token-state.is-set {
+    color: var(--ok);
+    border-color: color-mix(in srgb, var(--ok) 30%, var(--line));
+    background: color-mix(in srgb, var(--ok) 8%, transparent);
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 h-8 px-3.5 text-xs font-semibold cursor-pointer;
+    border-radius: 0;
+    border: 1px solid transparent;
+    letter-spacing: 0.005em;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+  }
+  .btn:active { transform: translateY(0.5px) scale(0.985); }
+  .btn-sm { @apply h-7 px-2.5 text-[11px] gap-1; }
+  .btn-primary {
+    background: var(--ink);
+    color: var(--bg);
+    border-color: var(--ink);
+  }
+  .btn-primary:hover {
+    background: color-mix(in srgb, var(--ink) 86%, var(--accent));
+    border-color: color-mix(in srgb, var(--ink) 86%, var(--accent));
+  }
+  .btn-ghost {
+    background: var(--panel);
+    color: var(--ink);
+    border-color: var(--line);
+  }
+  .btn-ghost:hover { border-color: var(--line-active); color: var(--accent); }
+
+  .metric {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 0;
+    @apply p-2.5;
+    transition: border-color 0.15s ease;
+  }
+  .metric:hover { border-color: color-mix(in srgb, var(--ink) 14%, var(--line)); }
+  .metric-label {
+    font-family: var(--font-mono);
+    @apply text-[10px] font-semibold uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+  }
+  .metric-value {
+    font-family: var(--font-mono);
+    @apply mt-1 text-2xl font-bold text-ink;
+    letter-spacing: -0.02em;
+  }
+
+  .chip {
+    @apply inline-flex items-center h-5 px-1.5 text-[9px] font-bold uppercase;
+    letter-spacing: 0.08em;
+    border: 1px solid var(--line);
+    border-radius: 0;
+    background: var(--bg);
+    color: var(--muted);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Overview / landing layer — a faithful take on the x-arc.ai theme:
+   sticky text nav, centered hero, floating isometric layer stack, releases
+   grid, mono-dated field notes, and arrow links throughout.
+--------------------------------------------------------------------------- */
+@layer components {
+  .nav {
+    @apply sticky top-0 z-50 h-16 flex items-center justify-between gap-6 px-6;
+    background: color-mix(in srgb, var(--panel) 82%, transparent);
+    border-bottom: 1px solid var(--line);
+    backdrop-filter: saturate(1.4) blur(10px);
+    -webkit-backdrop-filter: saturate(1.4) blur(10px);
+  }
+  .nav-link {
+    font-family: var(--font-mono);
+    @apply text-[11px] font-medium lowercase cursor-pointer bg-transparent border-0 p-0 relative py-1;
+    letter-spacing: 0.02em;
+    color: var(--muted);
+    transition: color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .nav-link::after {
+    content: "";
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 100%;
+    height: 1.5px;
+    background: var(--line-active);
+    transform: scale-x(0);
+    transform-origin: left;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .nav-link:hover { color: var(--ink); }
+  .nav-link:hover::after { transform: scale-x(0.6); }
+  .nav-link.is-active { color: var(--ink); }
+  .nav-link.is-active::after { transform: scale-x(1); }
+
+  .arrow-link {
+    @apply inline-flex items-center gap-1.5 text-xs font-semibold cursor-pointer bg-transparent border-0 p-0;
+    color: var(--accent);
+  }
+  .arrow-link .arw { transition: transform 0.18s ease; }
+  .arrow-link:hover .arw { transform: translateX(3px); }
+
+  .eyebrow-line {
+    @apply inline-flex items-center gap-2;
+  }
+  .eyebrow-line::before {
+    content: "";
+    width: 22px;
+    height: 1px;
+    background: var(--accent);
+  }
+
+  .hero-title {
+    @apply font-bold m-0;
+    font-size: clamp(2.1rem, 4.6vw, 3.5rem);
+    line-height: 1.03;
+    letter-spacing: -0.032em;
+    color: var(--ink);
+  }
+  .lede {
+    @apply m-0;
+    color: var(--muted);
+    font-size: clamp(0.95rem, 1.35vw, 1.12rem);
+    line-height: 1.62;
+  }
+
+  .stat-value {
+    font-family: var(--font-mono);
+    @apply font-bold text-ink m-0;
+    font-size: clamp(1.7rem, 2.6vw, 2.5rem);
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+
+  .sec-num {
+    font-family: var(--font-mono);
+    @apply text-[11px] font-semibold;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+  }
+  .sec-head {
+    @apply font-bold text-ink m-0;
+    font-size: clamp(1.25rem, 2vw, 1.6rem);
+    letter-spacing: -0.02em;
+  }
+
+  .rule { @apply border-0; height: 1px; background: var(--line); }
+}
+
+/* Subtle dotted backdrop, matching the graph canvas grid */
+.dot-bg {
+  background-image: radial-gradient(var(--grid-dot) 1.5px, transparent 1.5px);
+  background-size: 28px 28px;
+}
+
+/* Glassmorphism panel styling */
+.glass-panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  border-radius: 0;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.glass-panel:hover {
+  border-color: color-mix(in srgb, var(--line-active) 35%, var(--line));
+  box-shadow: var(--shadow-md), 0 0 20px -5px color-mix(in srgb, var(--line-active) 15%, transparent);
+}
+
+/* Cyber accent glows */
+.cyber-glow {
+  position: relative;
+}
+.cyber-glow::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, var(--line-active), var(--accent), transparent 60%);
+  z-index: -1;
+  opacity: 0.15;
+  transition: opacity 0.3s ease;
+}
+.cyber-glow:hover::after {
+  opacity: 0.35;
+}
+
+/* Modern gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, var(--ink) 30%, color-mix(in srgb, var(--accent) 70%, var(--ink)) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Isometric stack item hover states & floating animations */
+.stack-layer {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+  cursor: pointer;
+}
+.stack-layer:hover {
+  transform: translateY(-8px) scale(1.02);
+}
+
+.animate-stack-0 {
+  animation: float-stack-0 6s ease-in-out infinite;
+}
+.animate-stack-1 {
+  animation: float-stack-1 6s ease-in-out infinite 0.7s;
+}
+.animate-stack-2 {
+  animation: float-stack-2 6s ease-in-out infinite 1.4s;
+}
+.animate-stack-0,
+.animate-stack-1,
+.animate-stack-2 {
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+.animate-stack-entrance-0 {
+  animation: expand-stack-0 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.animate-stack-entrance-1 {
+  animation: expand-stack-1 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.animate-stack-entrance-2 {
+  animation: expand-stack-2 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.animate-stack-entrance-0,
+.animate-stack-entrance-1,
+.animate-stack-entrance-2 {
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+@keyframes expand-stack-0 {
+  0% { transform: translateY(96px); opacity: 0; }
+  25% { opacity: 0.4; }
+  100% { transform: translateY(0px); opacity: 1; }
+}
+@keyframes expand-stack-1 {
+  0% { transform: translateY(0px) scale(0.9); opacity: 0; }
+  100% { transform: translateY(0px) scale(1); opacity: 1; }
+}
+@keyframes expand-stack-2 {
+  0% { transform: translateY(-96px); opacity: 0; }
+  25% { opacity: 0.4; }
+  100% { transform: translateY(0px); opacity: 1; }
+}
+
+@keyframes float-stack-0 {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes float-stack-1 {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-4px); }
+}
+@keyframes float-stack-2 {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-2px); }
+}
+
+/* Interactive Playground animations */
+.playground-line {
+  stroke-dasharray: 6 6;
+  animation: line-flow 1.5s linear infinite;
+}
+
+@keyframes line-flow {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+    filter: drop-shadow(0 0 2px var(--line-active));
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+    filter: drop-shadow(0 0 8px var(--line-active));
+  }
+}
+
+.animate-float {
+  animation: floating 4s ease-in-out infinite;
+}
+
+@keyframes floating {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+
+.interactive-box {
+  background: rgba(var(--ink), 0.02);
+  border: 1px dashed var(--line);
+  border-radius: 0;
+}
+
+/* Console line slide up & fade in */
+.console-line {
+  opacity: 0;
+  transform: translateY(4px);
+  animation: console-fade-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes console-fade-in {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Simulated pop-in for visualizer graph nodes */
+.node-g {
+  opacity: 0;
+  transform: scale(0.85);
+  transform-origin: var(--origin-x, 120px) var(--origin-y, 120px);
+  animation: node-pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes node-pop-in {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Border slide line micro-interaction for glass-panel cards */
+.glass-panel {
+  position: relative;
+  overflow: hidden;
+}
+.glass-panel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--line-active), transparent);
+  transform: scale-x(0);
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.glass-panel:hover::before {
+  transform: scale-x(1);
+}
+
