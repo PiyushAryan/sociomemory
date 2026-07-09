@@ -4,14 +4,14 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sociomemory"
-version = "0.2.0"
-description = "Graph memory engine for social context inference"
+version = "0.2.1"
+description = "Social context graph memory engine"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
 authors = [{ name = "Piyush Aryan" }]
 maintainers = [{ name = "Piyush Aryan" }]
-keywords = ["memory", "graph", "neo4j", "faiss", "ai", "coaching", "ndd"]
+keywords = ["memory", "graph", "neo4j", "faiss", "ai", "context", "social"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Other Audience",

@@ -1,548 +1,57 @@
 # sociomemory
 
-**Graph memory engine for social context inference**
-
+[![PyPI](https://img.shields.io/pypi/v/sociomemory.svg)](https://pypi.org/project/sociomemory/)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
-![Neo4j](https://img.shields.io/badge/Neo4j-5.x-008CC1)
-![FAISS](https://img.shields.io/badge/FAISS-in--process-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-> sociomemory is released under the **MIT License**. See [`LICENSE`](LICENSE) for full terms.
+`sociomemory` is a Python package for building a graph of social, economic, cultural,
+location, education, work, and behavioral context around a subject profile. It is
+designed for agent applications that need structured context instead of one flat memory
+string.
 
----
+The package is India-first: it ships with bundled offline reference data for Indian
+cities, neighborhoods, real estate bands, school boards, cultural regions, and amenity
+categories. Optional online and LLM providers can enrich that data when configured.
 
-## What is sociomemory?
+## What it does
 
-Children with neurodevelopmental disorders (ASD, ADHD, Dyslexia) don't arrive in a vacuum. They arrive from Koramangala or Dharavi, from CBSE schools or Anganwadis, from Infosys households or daily-wage families. An AI coach that ignores this context gives generic advice. sociomemory makes sure agents do not.
+- Extracts or accepts structured signals such as location, education, profession,
+  visits, language, housing, and lifestyle.
+- Enriches signals through offline providers and optional online providers.
+- Stores context as a graph with typed nodes, edges, confidence, timestamps, and data
+  sensitivity levels.
+- Produces structured profiles and LLM-ready context blocks.
+- Includes privacy controls for consent, filtering, export, and erasure.
+- Supports Neo4j by default, with a backend protocol for other graph stores.
 
-sociomemory is a **standalone, pip-installable Python library** that builds a living graph of social, economic, and cultural context around a child — inferred from sparse conversation signals. When a child says "I live in Koramangala", the library does not store a string. It traverses a knowledge graph and arrives at: upper-middle income family, IT hub neighbourhood, Kannada-speaking, outdoor parks within 2 km, Cubbon Park nearby, can afford professional OT therapy.
+This is infrastructure for context-aware applications.
 
-The core idea is simple: **every piece of knowledge is a node, every relationship is an edge, every inference is a traversal. The graph IS the memory.**
-
-sociomemory is India-first. It ships with bundled data for Indian cities, neighbourhoods, real-estate tiers, school boards, and cultural regions — so it works offline, out of the box, without any API calls.
-
----
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         sociomemory                             │
-│                                                                 │
-│   Conversation text                                             │
-│        │                                                        │
-│        ▼                                                        │
-│   ┌──────────────┐    ┌──────────────┐    ┌─────────────────┐   │
-│   │  Extractor   │───▶│   Enricher   │───▶│   Implicator    │   │
-│   │  (signals)   │    │  (providers) │    │  (coaching)     │   │
-│   └──────────────┘    └──────┬───────┘    └────────┬────────┘   │
-│                              │                     │            │
-│              ┌───────────────┼─────────────────────┘            │
-│              ▼               ▼                                  │
-│   ┌────────────────────────────────────────────────────────┐    │
-│   │                   MemoryGraph                          │    │
-│   │                                                        │    │
-│   │   Graph backend        Hybrid recall                   │    │
-│   │   (Neo4j default)                                      │    │
-│   │   ┌──────────────┐     ┌────────────────────┐          │    │
-│   │   │ Nodes/Edges  │     │  FAISS embeddings  │          │    │
-│   │   │ LIVES_IN     │     │  BM25 keyword idx  │          │    │
-│   │   │ DERIVES      │     └────────────────────┘          │    │
-│   │   │ UPDATES      │                                     │    │
-│   │   │ IMPLIES      │     SQLite (cache + consent)        │    │
-│   │   └──────────────┘     ┌────────────────────┐          │    │
-│   │                        │  enrichment cache  │          │    │
-│   └────────────────────────│  consent records   │─────────┘     │
-│                            └────────────────────┘               │
-│                                                                 │
-│   Engines                  Providers                            │
-│   ┌───────────────────┐    ┌───────────────────────────────┐    │
-│   │ IncomeEstimator   │    │ OfflineLocationProvider       │    │
-│   │ BehavioralInf.    │    │   bundled india_cities.json   │    │
-│   │ TradeOffDetector  │    │   india_real_estate.json      │    │
-│   │ VersioningEngine  │    │   cultural_regions.json       │    │
-│   └───────────────────┘    │ ExaLocationProvider (online)  │    │
-│                            └───────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## How it works — the inference chain
-
-A single sentence from a session triggers a multi-hop graph traversal:
-
-```
-Child: "We live in Koramangala"
-         │
-         ▼
-[SignalExtractor]  →  Signal(type=LOCATION, value="Koramangala", confidence=0.85)
-         │
-         ▼
-[OfflineLocationProvider]  →  reads india_cities.json + india_real_estate.json
-         │
-         ├──▶  Node(NEIGHBORHOOD, name="Koramangala", area_type="urban_affluent")
-         ├──▶  Node(CITY, name="Bengaluru")
-         ├──▶  Node(REAL_ESTATE, avg_rent_2bhk=55000, area_type="premium")
-         ├──▶  Node(CULTURAL, primary_language="Kannada", cosmopolitan=0.85)
-         ├──▶  Node(ECONOMIC, income_tier="upper_middle")
-         ├──▶  Node(TRANSPORT, metro_access=True, connectivity_score=0.82)
-         └──▶  Node(SAFETY, aqi_avg=95, child_safety_score=0.74)
-                        │
-                        ▼
-          [IncomeEstimator — multi-hop convergence]
-                        │
-          Path 1: RealEstate.avg_rent=55000 → bracket=upper_middle (weight 0.35)
-          Path 2: School.fee_yearly         → bracket=upper_middle (weight 0.25)  ← if known
-          Path 3: Employer.industry         → bracket=upper_middle (weight 0.25)  ← if known
-          Path 4: Economic.income_tier=upper_middle        (weight 0.15)
-                        │
-                        ▼
-          IncomeEstimate(bracket="upper_middle",
-                         monthly_range=(100000, 250000),
-                         confidence=0.78,
-                         affordability_index=0.78)
-                        │
-                        ▼
-          [CoachingImplicator]
-          → "Family can afford private OT therapy (₹2000–4000/session)"
-          → "Cubbon Park 2.1 km away — viable for outdoor sensory walks"
-          → "IT background: high digital literacy, app-based exercises will land well"
-```
-
-Every inferred node stores:
-- `confidence` — how certain we are
-- `source_chunk` — the exact verbatim sentence that triggered it
-- `document_date` — when we captured it
-- `event_date` — when it actually happened (for temporal queries)
-- `sensitivity` — PUBLIC / CONTEXTUAL / PERSONAL / SENSITIVE
-
----
-
-## Behavioral place intelligence
-
-Visit patterns build identity without asking directly.
-
-| Child mentions visiting… | sociomemory infers… |
-|---|---|
-| ISKCON temple regularly | `religious=krishna_devotee`, `dietary=vegetarian_likely`, therapy narrative: Krishna stories |
-| Temple (generic) | `religious=hindu` |
-| Mosque | `religious=muslim`, `dietary=halal_likely` |
-| Gurudwara | `religious=sikh`, `dietary=vegetarian_likely` |
-| Hill station / trekking | `lifestyle=outdoor_active`, `sensory=cold_tolerant` |
-| Beach / water park | `lifestyle=outdoor_active`, `sensory=water_comfortable` → aqua therapy candidate |
-| Mall (frequent) | `lifestyle=urban_explorer`, `sensory=crowd_tolerant` → group therapy viable |
-| Museum / zoo / science centre | `lifestyle=experiential_learner` → museum-based learning sessions |
-| Library | `lifestyle=quiet_preference` → low-stimulation session environment preferred |
-
-Therapy opportunities are surfaced automatically from these patterns — e.g. confirmed water comfort becomes an aqua therapy recommendation with a confidence score attached.
-
----
-
-## Quick start
-
-### Install
+## Installation
 
 ```bash
-# Core: Neo4j + BM25 keyword recall
 pip install sociomemory
-
-# FAISS vector recall and Gemini
-pip install "sociomemory[vector,gemini]"
-
-# Every optional backend and provider
-pip install "sociomemory[all]"
 ```
 
-### Optional: spaCy NER pre-pass
-
-Robust entity extraction uses spaCy as an optional accelerator:
-
-    pip install "sociomemory[nlp]"
-    python -m spacy download en_core_web_sm
-
-Without it, extraction falls back to the LLM (and the offline place-keyword
-scan). spaCy only speeds up and anchors English-script spans.
-
-### Connect to Neo4j AuraDB Free
-
-```python
-import asyncio
-from sociomemory import Sociomemory, SociomemoryConfig
-
-config = SociomemoryConfig(
-    neo4j_uri="neo4j+s://xxxxxxxx.databases.neo4j.io",  # AuraDB free tier
-    neo4j_user="neo4j",
-    neo4j_password="your-aura-password",
-    llm_backend="gemini",
-    llm_api_key="your-gemini-api-key",
-    exa_api_key="your-exa-key",          # optional — enables online enrichment
-)
-
-async def main():
-    async with Sociomemory(config) as sm:
-        # Ingest a conversation turn
-        result = await sm.ingest(
-            child_id="child_001",
-            text="We live in Koramangala. My son goes to DPS, Bangalore.",
-        )
-        print(result)
-        # {'status': 'ok', 'signals': 2, 'nodes_added': 9, 'edges_added': 7}
-
-        # Get structured profile
-        profile = await sm.get_profile("child_001")
-        print(profile.income_estimate.bracket)               # 'upper_middle'
-        print(profile.income_estimate.affordability_index)   # 0.78
-
-        # Get LLM-ready context string
-        context = await sm.get_context_for_llm("child_001")
-        print(context)
-
-asyncio.run(main())
-```
-
-### Use another graph database
-
-Neo4j is the default adapter, not a requirement of the graph domain layer. Implement the
-backend-neutral `GraphBackend` protocol for Memgraph, ArangoDB, Amazon Neptune, or another graph
-database, then inject that adapter:
-
-```python
-from sociomemory import Sociomemory, SociomemoryConfig
-
-backend = MyGraphBackend(...)
-memory = Sociomemory(SociomemoryConfig(llm_backend="none"), graph_backend=backend)
-```
-
-Adapters own database-specific queries, transactions, schema setup, and record conversion. The
-`MemoryGraph`, privacy, reasoning, and dashboard layers only use semantic backend operations.
-
-### Ingest a structured signal directly
-
-```python
-async with Sociomemory(config) as sm:
-    await sm.ingest_signal(
-        child_id="child_001",
-        signal_type="visit",
-        value="iskcon",
-        confidence=0.9,
-    )
-
-    # Ask a natural language question against the graph
-    answer = await sm.query("child_001", "What therapy approaches suit this family?")
-```
-
-### Refresh stale nodes
-
-When a fact changes (family moves neighbourhoods), downstream derived nodes are cascade-staled and need recomputation:
-
-```python
-async with Sociomemory(config) as sm:
-    report = await sm.refresh("child_001")
-    print(report)  # {'stale_nodes': 4, 'node_ids': [...]}
-```
-
----
-
-## Configuration reference
-
-`SociomemoryConfig` is a plain Python dataclass; pass credentials explicitly or load them through your application's configuration layer.
-
-```python
-from sociomemory import SociomemoryConfig
-from pathlib import Path
-
-config = SociomemoryConfig(
-    # Neo4j — local or AuraDB
-    neo4j_uri="bolt://localhost:7687",       # AuraDB: "neo4j+s://xxxx.databases.neo4j.io"
-    neo4j_user="neo4j",
-    neo4j_password="password",
-    neo4j_database="neo4j",                  # AuraDB always uses "neo4j"
-
-    # LLM backend
-    llm_backend="openrouter",                # "gemini" | "openai" | "openrouter" | "ollama"
-    llm_api_key="...",
-    llm_model="",                            # leave empty for per-backend default
-    llm_embedding_model="",                  # leave empty for per-backend default
-
-    # Local storage (FAISS + SQLite)
-    data_dir=Path.home() / ".sociomemory",   # auto-created; FAISS + SQLite live here
-
-    # Behaviour
-    offline_only=False,                      # True = never call any external API
-    enforce_consent=True,                    # reject sensitive operations without consent
-    country="IN",                            # India-first defaults
-    embedding_dim=768,                       # must match your LLM's embedding output
-
-    # Online enrichment
-    exa_api_key="",                          # leave empty to use offline-only mode
-    enrichment_cache_ttl_hours=24,           # how long to cache Exa responses (hours)
-)
-```
-
----
-
-## Providers
-
-sociomemory resolves location and school signals through a provider chain. Offline runs first; online augments.
-
-### Offline (bundled, zero dependencies)
-
-Bundled JSON files in `sociomemory/data/`:
-
-| File | Contents |
-|---|---|
-| `india_cities.json` | ~500 cities with coordinates, state, tier classification |
-| `india_real_estate.json` | Neighbourhood-level rent bands, area type, premium score |
-| `cultural_regions.json` | Language, religion, cuisine, cosmopolitan index by city/region |
-| `school_boards.json` | CBSE / ICSE / State board profiles, typical fee bands, medium |
-| `amenity_categories.json` | Amenity type → behavioural category mappings |
-
-Offline providers cover the vast majority of Indian urban and semi-urban contexts without any network call.
-
-### Exa.ai (online enrichment)
-
-Install `sociomemory[online]` and set `exa_api_key` to enable real-time enrichment:
-
-- Civic and political context for the neighbourhood
-- Current therapy centres and special-needs schools nearby
-- Local community resources, NGOs, and support groups
-- Recent safety and infrastructure updates
-
-### OpenRouter (LLM backend)
-
-Use OpenRouter when you want one API key for multiple hosted LLM providers:
-
-```python
-config = SociomemoryConfig(
-    llm_backend="openrouter",
-    llm_api_key="sk-or-...",
-    llm_model="moonshotai/kimi-k2.6:free",
-    llm_embedding_model="nvidia/llama-nemotron-embed-vl-1b-v2:free",
-    embedding_dim=1536,
-)
-```
-
-For the source-checkout dashboard:
+Optional extras:
 
 ```bash
-export SOCIOMEMORY_LLM_BACKEND="openrouter"
-export SOCIOMEMORY_LLM_API_KEY="$OPENROUTER_API_KEY"
-export SOCIOMEMORY_LLM_MODEL="moonshotai/kimi-k2.6:free"
-export SOCIOMEMORY_LLM_EMBEDDING_MODEL="nvidia/llama-nemotron-embed-vl-1b-v2:free"
-export SOCIOMEMORY_EMBEDDING_DIM="1536"
+pip install "sociomemory[vector]"      # FAISS vector recall
+pip install "sociomemory[gemini]"      # Gemini LLM adapter
+pip install "sociomemory[openai]"      # OpenAI LLM adapter
+pip install "sociomemory[openrouter]"  # OpenRouter LLM adapter
+pip install "sociomemory[online]"      # Exa enrichment provider
+pip install "sociomemory[nlp]"         # spaCy-assisted NER
+pip install "sociomemory[geo]"         # Geo helpers
+pip install "sociomemory[all]"         # All optional runtime extras
 ```
 
-Exa results are LLM-parsed and stored in the graph with a TTL (default 24 hours). All Exa calls are cached in SQLite — repeated ingestion of the same location does not re-hit the API.
-
-### Browser-acquired location
-
-The source-checkout dashboard can acquire a location through the browser geolocation permission
-prompt and send latitude/longitude to the local API. The dashboard is intentionally excluded from
-the PyPI wheel; install from a source checkout to run it. Coordinates are resolved locally against
-`sociomemory/data/india_cities.json` with the offline GeoPandas-compatible resolver before the normal
-location provider chain runs. If `h3` is installed through `sociomemory[geo]`, the API also adds
-coarse H3 cell tokens to the signal metadata for privacy-preserving spatial indexing instead of
-persisting raw coordinates. Set `SOCIOMEMORY_EXA_API_KEY` plus an LLM backend to add online Exa
-enrichment after the bundled offline context.
-
----
-
-## Privacy and consent
-
-sociomemory stores sensitive inferences about real children. Privacy is a first-class concern, not an afterthought.
-
-### Node sensitivity levels
-
-Every node carries a `DataLevel`:
-
-| Level | Examples | Default behaviour |
-|---|---|---|
-| `PUBLIC` | City, state, area type | Always available |
-| `CONTEXTUAL` | Neighbourhood, school board, income bracket | Available with basic consent |
-| `PERSONAL` | School name, employer, exact address | Requires explicit consent scope |
-| `SENSITIVE` | Religious identity, dietary inferences | Requires explicit consent scope |
-
-### Consent API
-
-```python
-from sociomemory import Sociomemory, ConsentScope
-
-async with Sociomemory(config) as sm:
-    # Record parental consent (SQLite-backed, per child per scope)
-    sm.privacy.record_consent(
-        child_id="child_001",
-        parent_id="parent_A",
-        scope=ConsentScope.INCOME_INFERENCE,
-        granted=True,
-    )
-    sm.privacy.record_consent(
-        child_id="child_001",
-        parent_id="parent_A",
-        scope=ConsentScope.RELIGIOUS_CONTEXT,
-        granted=False,       # parent opts out
-    )
-
-    # Check before using
-    if sm.privacy.check_consent("child_001", ConsentScope.RELIGIOUS_CONTEXT):
-        # use religious context in prompt
-        pass
-```
-
-Set `enforce_consent=True` to make missing consent fail closed during location, school, employer, visit, religious, and income operations. The default remains `False` for compatibility with existing installations.
-
-Available `ConsentScope` values: `LOCATION_AREA`, `LOCATION_EXACT`, `INCOME_INFERENCE`, `SCHOOL_DATA`, `RELIGIOUS_CONTEXT`, `BEHAVIORAL_PROFILING`, `EMPLOYER_DATA`, `EXPORT`.
-
-### GDPR erasure
-
-```python
-async with Sociomemory(config) as sm:
-    # Deletes Neo4j data, FAISS/BM25 indexes, cached in-memory indexes, and consent
-    await sm.privacy.erase("child_001")
-
-    sm.privacy.record_consent("child_002", "parent_A", ConsentScope.EXPORT)
-    exported = await sm.privacy.export_data("child_002")
-```
-
----
-
-## Agent integration
-
-sociomemory plugs into agent applications at four points.
-
-### 1. System prompt enrichment
-
-Inject social context into every LLM call so the agent knows the family's world:
-
-```python
-async with Sociomemory(config) as sm:
-    context_block = await sm.get_context_for_llm("child_001")
-
-system_prompt = f"""
-You are an AI coach for children with neurodevelopmental disorders.
-
-{context_block}
-
-Use this context to personalise every response. Suggest activities that are
-geographically accessible, culturally appropriate, and within family budget.
-"""
-```
-
-The context block looks like:
-
-```
-## Socioeconomic Context (Graph-Derived)
-- Income: upper_middle (₹1,00,000–₹2,50,000/mo, confidence 78%)
-- Area: Koramangala (urban_affluent)
-- AQI: 95 (good)
-- Primary language: Kannada
-- Lifestyle: outdoor_active, urban_explorer
-- Religious: krishna_devotee (72%)
-- Therapy opportunities: adventure therapy, cultural narrative, group therapy
-```
-
-### 2. Signal ingestion from session turns
-
-Feed every conversation turn through sociomemory to continuously build the graph:
-
-```python
-async def on_child_message(child_id: str, text: str, sm: Sociomemory):
-    result = await sm.ingest(child_id, text)
-    if result.get("signals", 0) > 0:
-        # Graph updated — next LLM call will have richer context
-        pass
-```
-
-### 3. Activity selection
-
-Use the structured profile to filter and rank activities:
-
-```python
-async with Sociomemory(config) as sm:
-    profile = await sm.get_profile("child_001")
-    income = profile.income_estimate
-
-    # Filter to affordable activities
-    affordable = [
-        activity for activity in activity_library
-        if activity.cost_tier <= income.affordability_index
-    ]
-
-    # Boost outdoor activities if lifestyle matches
-    if "outdoor_active" in profile.lifestyle_tags:
-        outdoor = [a for a in affordable if a.category == "outdoor"]
-        # prioritise these in the recommendation set
-```
-
-### 4. ChildProfile construction
-
-Build a complete `ChildProfile` for your application's domain model:
-
-```python
-async with Sociomemory(config) as sm:
-    profile = await sm.get_profile("child_001")
-
-child_profile = ChildProfile(
-    id="child_001",
-    city=profile.city,
-    neighbourhood=profile.neighborhood,
-    income_bracket=profile.economic_tier,
-    affordability_index=profile.income_estimate.affordability_index if profile.income_estimate else 0.5,
-    school_board=profile.school_context.get("board"),
-    primary_language=profile.cultural_context.get("primary_language"),
-    lifestyle_tags=profile.lifestyle_tags,
-    nearby_therapy_centers=profile.resource_availability.get("therapy_centers", 0),
-    graph_confidence=profile.confidence,
-)
-```
-
----
-
-## Relational versioning
-
-sociomemory tracks how facts change over time using three edge types:
-
-| Edge | Meaning | Effect |
-|---|---|---|
-| `UPDATES` | New fact replaces old (family moved) | Old node kept for history; downstream `DERIVES` nodes cascade-staled |
-| `EXTENDS` | New fact adds detail without contradiction | Confidence increases; no staling |
-| `DERIVES` | Node was computed by combining other nodes | Automatically re-queued when dependencies stale |
-
-When a family moves from Koramangala to Whitefield, call `VersioningEngine.update_node(old_hood_id, new_hood_node)` and all income estimates, transport scores, and therapy implications derived from the old neighbourhood are automatically marked stale. `sm.refresh("child_001")` returns the stale node IDs in topological recomputation order.
-
-### Dual-layer timestamps
-
-Every node carries two timestamps:
-
-- `document_date` — when sociomemory captured this fact (wall-clock time of ingest)
-- `event_date` — when the event actually happened (e.g. a visit last summer)
-
-This enables temporal queries like "What was the family's income estimate last year?" or "Did they visit a hill station in summer 2025?"
-
----
-
-## Development setup
-
-### Prerequisites
+## Requirements
 
 - Python 3.11+
-- [uv](https://docs.astral.sh/uv/) (recommended) or pip
-- Docker (for local Neo4j)
+- Neo4j 5.x, unless you provide a custom `GraphBackend`
+- Optional API keys for hosted LLM or online enrichment providers
 
-### Install
-
-```bash
-git clone https://github.com/piyusharyan/sociomemory
-cd sociomemory
-
-# Install with dev dependencies
-uv sync --extra dev
-
-# Or with pip
-pip install -e ".[dev]"
-```
-
-### Run Neo4j locally with Docker
+For a local Neo4j instance:
 
 ```bash
 docker run \
@@ -552,92 +61,208 @@ docker run \
   neo4j:5
 ```
 
-Connect with:
+## Quick Start
+
+This example uses direct structured signals, so it works without an LLM API key.
+
+Note: the current API uses `child_id` as the profile identifier parameter name for
+backward compatibility. You can pass any stable subject or profile id.
 
 ```python
+import asyncio
+
+from sociomemory import Sociomemory, SociomemoryConfig
+
+
 config = SociomemoryConfig(
     neo4j_uri="bolt://localhost:7687",
     neo4j_user="neo4j",
     neo4j_password="testpassword",
-    llm_backend="ollama",   # no API key needed for local dev
+    llm_backend="none",
+    offline_only=True,
+)
+
+
+async def main():
+    profile_id = "profile_001"
+
+    async with Sociomemory(config) as sm:
+        await sm.ingest_signal(
+            child_id=profile_id,
+            signal_type="location",
+            value="Koramangala",
+            confidence=0.9,
+        )
+
+        await sm.ingest_signal(
+            child_id=profile_id,
+            signal_type="school",
+            value="DPS Bangalore",
+            confidence=0.8,
+        )
+
+        profile = await sm.get_profile(profile_id)
+        print(profile.city)
+        print(profile.neighborhood)
+        print(profile.economic_tier)
+
+        context = await sm.get_context_for_llm(profile_id)
+        print(context)
+
+
+asyncio.run(main())
+```
+
+## Conversation Ingestion
+
+With an LLM backend configured, `ingest()` can extract signals from free text.
+
+```python
+import asyncio
+
+from sociomemory import Sociomemory, SociomemoryConfig
+
+
+config = SociomemoryConfig(
+    neo4j_uri="neo4j+s://your-db.databases.neo4j.io",
+    neo4j_user="neo4j",
+    neo4j_password="your-password",
+    llm_backend="gemini",
+    llm_api_key="your-gemini-key",
+)
+
+
+async def main():
+    profile_id = "profile_001"
+
+    async with Sociomemory(config) as sm:
+        result = await sm.ingest(
+            child_id=profile_id,
+            text="We live in Koramangala and use the metro to commute.",
+        )
+        print(result)
+
+
+asyncio.run(main())
+```
+
+Supported LLM backends are `gemini`, `openai`, `openrouter`, `ollama`, `local`, and
+`none`.
+
+## Configuration
+
+`SociomemoryConfig` is a plain dataclass:
+
+```python
+from pathlib import Path
+
+from sociomemory import SociomemoryConfig
+
+
+config = SociomemoryConfig(
+    neo4j_uri="bolt://localhost:7687",
+    neo4j_user="neo4j",
+    neo4j_password="password",
+    neo4j_database="neo4j",
+    llm_backend="openrouter",
+    llm_api_key="sk-or-...",
+    llm_model="",
+    llm_embedding_model="",
+    data_dir=Path.home() / ".sociomemory",
+    offline_only=False,
+    enforce_consent=True,
+    country="IN",
+    embedding_dim=768,
+    exa_api_key="",
+    enrichment_cache_ttl_hours=24,
 )
 ```
 
-### Run tests
+## Privacy
+
+Each graph node carries a sensitivity level. When `enforce_consent=True`,
+`sociomemory` checks consent before sensitive operations.
+
+```python
+from sociomemory import ConsentScope, Sociomemory
+
+
+async def privacy_example(config):
+    profile_id = "profile_001"
+
+    async with Sociomemory(config) as sm:
+        sm.privacy.record_consent(
+            child_id=profile_id,
+            parent_id="owner_001",
+            scope=ConsentScope.LOCATION_AREA,
+            granted=True,
+        )
+
+        sm.privacy.record_consent(
+            child_id=profile_id,
+            parent_id="owner_001",
+            scope=ConsentScope.RELIGIOUS_CONTEXT,
+            granted=False,
+        )
+
+        sm.privacy.record_consent(
+            child_id=profile_id,
+            parent_id="owner_001",
+            scope=ConsentScope.EXPORT,
+            granted=True,
+        )
+
+        exported = await sm.privacy.export_data(profile_id)
+        await sm.privacy.erase(profile_id)
+        return exported
+```
+
+Consent scopes include:
+
+- `LOCATION_AREA`
+- `LOCATION_EXACT`
+- `INCOME_INFERENCE`
+- `SCHOOL_DATA`
+- `RELIGIOUS_CONTEXT`
+- `BEHAVIORAL_PROFILING`
+- `EMPLOYER_DATA`
+- `EXPORT`
+
+## Custom Graph Backends
+
+Neo4j is the default storage adapter. To use another graph database, implement the
+`GraphBackend` protocol and inject it:
+
+```python
+from sociomemory import Sociomemory, SociomemoryConfig
+
+
+backend = MyGraphBackend(...)
+memory = Sociomemory(
+    SociomemoryConfig(llm_backend="none"),
+    graph_backend=backend,
+)
+```
+
+The graph domain layer uses semantic backend operations; database-specific queries and
+transactions stay inside the adapter.
+
+## Development
 
 ```bash
-uv run pytest
+git clone https://github.com/piyusharyan/sociomemory
+cd sociomemory
 
-# With coverage
-uv run pytest --cov=sociomemory
+uv sync --extra dev
+uv run pytest -m "not integration and not network"
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy sociomemory
+uv run python -m build
 ```
 
-Tests use `testcontainers` to spin up an ephemeral Neo4j instance — no manual Docker setup needed beyond having Docker running.
-
-### Lint and format
-
-```bash
-uv run ruff check sociomemory/
-uv run ruff format sociomemory/
-```
-
----
-
-## Module reference
-
-```
-sociomemory/
-├── __init__.py          Sociomemory  (public API class)
-├── config.py            SociomemoryConfig  (dataclass)
-├── graph/
-│   ├── nodes.py         Node, NodeType, DataLevel
-│   ├── edges.py         Edge, EdgeType  (UPDATES/EXTENDS/DERIVES + structural)
-│   ├── memory_graph.py  MemoryGraph  (per-child graph interface)
-│   ├── reasoner.py      GraphReasoner  (income, behavioral, gaps, context string)
-│   ├── builder.py       GraphBuilder  (subgraph construction helpers)
-│   ├── cypher.py        Cypher query constants
-│   └── schema.py        Neo4j index / constraint definitions
-├── engine/
-│   ├── income.py        IncomeEstimator  (multi-hop convergence, 4 signal paths)
-│   ├── behavioral.py    BehavioralInference  (visit pattern → identity)
-│   ├── tradeoff.py      TradeOffDetector
-│   ├── temporal.py      TemporalEngine  (event_date queries)
-│   ├── versioning.py    VersioningEngine  (UPDATES/EXTENDS/cascade staling)
-│   └── scorer.py        ConfidenceScorer
-├── pipeline/
-│   ├── extractor.py     SignalExtractor  (regex + LLM fallback)
-│   ├── enricher.py      EnrichmentPipeline  (signals → graph nodes)
-│   └── implicator.py    CoachingImplicator  (graph → actionable coaching)
-├── providers/
-│   ├── offline.py       OfflineLocationProvider, OfflineSchoolProvider
-│   └── exa.py           ExaLocationProvider  (requires [online])
-├── storage/
-│   ├── neo4j_backend.py Neo4jBackend  (async driver wrapper)
-│   ├── vector.py        FaissIndex  (per-child in-process FAISS index)
-│   ├── keyword.py       BM25Index  (per-child lexical keyword index)
-│   ├── graph_backend.py GraphBackend  (backend-neutral graph protocol)
-│   └── cache.py         SQLiteCache  (enrichment result cache + TTL)
-├── llm/
-│   ├── base.py          BaseLLM  (protocol)
-│   ├── gemini.py        GeminiLLM
-│   ├── openai.py        OpenAILLM
-│   └── local.py         OllamaLLM
-├── privacy/
-│   ├── consent.py       ConsentManager, ConsentScope
-│   ├── boundaries.py    SensitivityFilter
-│   └── anonymizer.py    Anonymizer
-└── data/
-    ├── india_cities.json
-    ├── india_real_estate.json
-    ├── cultural_regions.json
-    ├── school_boards.json
-    └── amenity_categories.json
-```
-
----
+Integration tests that touch Neo4j require Docker.
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
-
-Built by **Piyush Aryan** for social-context-aware agents. India-first.
+MIT. See [LICENSE](LICENSE).

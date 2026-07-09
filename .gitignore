@@ -30,3 +30,5 @@ build/
 # not part of the pip package
 sociomemory/dashboard/
 tests/test_dashboard_export.py
+CLAUDE.md
+AGENTS.md
