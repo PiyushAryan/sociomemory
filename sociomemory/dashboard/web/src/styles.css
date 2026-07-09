@@ -208,9 +208,9 @@ pre,
   .token-state {
     font-family: var(--font-mono);
     @apply shrink-0 text-[9px] font-bold uppercase px-1.5 py-1 border;
-    color: var(--danger);
-    border-color: color-mix(in srgb, var(--danger) 30%, var(--line));
-    background: color-mix(in srgb, var(--danger) 7%, transparent);
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
+    background: color-mix(in srgb, var(--accent) 7%, transparent);
     letter-spacing: 0.08em;
   }
   .token-state.is-set {
@@ -573,4 +573,3 @@ pre,
 .glass-panel:hover::before {
   transform: scale-x(1);
 }
-

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
-const INITIAL_CHILD_ID = "child_001";
+const INITIAL_CHILD_ID = "Piyush";
 const DASHBOARD_TOKEN_KEY = "sociomemory-dashboard-token";
 
 const TYPE_COLORS = {
@@ -30,6 +30,191 @@ const SENSITIVITY_STROKE = {
   personal: "#f59e0b",
   sensitive: "#ef4444",
 };
+
+const DEMO_CHILD_ID = "Piyush";
+
+const DEMO_NODES = [
+  {
+    id: "demo-child",
+    child_id: DEMO_CHILD_ID,
+    type: "Child",
+    properties: { name: "Piyush", child_id: DEMO_CHILD_ID },
+    confidence: 1,
+    sensitivity: "personal",
+    document_date: "2026-07-10",
+    event_date: null,
+    source_chunk: "Demo profile seeded for public sociomemory exploration.",
+    stale: false,
+    label: "Piyush",
+  },
+  {
+    id: "demo-school",
+    child_id: DEMO_CHILD_ID,
+    type: "School",
+    properties: { name: "Greenwood High", board: "IB", locality: "Koramangala" },
+    confidence: 0.91,
+    sensitivity: "contextual",
+    document_date: "2026-07-10",
+    event_date: null,
+    source_chunk: "Piyush studies at Greenwood High in Koramangala.",
+    stale: false,
+    label: "Greenwood High",
+  },
+  {
+    id: "demo-neighborhood",
+    child_id: DEMO_CHILD_ID,
+    type: "Neighborhood",
+    properties: { name: "Koramangala", city: "Bengaluru", country: "IN" },
+    confidence: 0.88,
+    sensitivity: "contextual",
+    document_date: "2026-07-10",
+    event_date: null,
+    source_chunk: "The family recently moved near Koramangala 5th Block.",
+    stale: false,
+    label: "Koramangala",
+  },
+  {
+    id: "demo-city",
+    child_id: DEMO_CHILD_ID,
+    type: "City",
+    properties: { name: "Bengaluru", state: "Karnataka" },
+    confidence: 0.96,
+    sensitivity: "public",
+    document_date: "2026-07-10",
+    event_date: null,
+    source_chunk: "Koramangala is resolved to Bengaluru, Karnataka.",
+    stale: false,
+    label: "Bengaluru",
+  },
+  {
+    id: "demo-economic",
+    child_id: DEMO_CHILD_ID,
+    type: "Economic",
+    properties: { segment: "urban professional", evidence: "school + neighborhood + transport" },
+    confidence: 0.68,
+    sensitivity: "sensitive",
+    document_date: "2026-07-10",
+    event_date: null,
+    source_chunk: "Context suggests urban professional household signals.",
+    stale: false,
+    label: "Urban professional",
+  },
+  {
+    id: "demo-visit",
+    child_id: DEMO_CHILD_ID,
+    type: "Visit",
+    properties: { name: "Shiva Temple visit", place: "Shiva Temple", frequency: "occasional" },
+    confidence: 0.79,
+    sensitivity: "personal",
+    document_date: "2026-07-10",
+    event_date: "2026-07-08",
+    source_chunk: "Yesterday evening, Piyush visited a Shiva Temple with family.",
+    stale: false,
+    label: "Shiva Temple visit",
+  },
+  {
+    id: "demo-transport",
+    child_id: DEMO_CHILD_ID,
+    type: "Transport",
+    properties: { mode: "school bus", commute_pattern: "weekday mornings" },
+    confidence: 0.74,
+    sensitivity: "contextual",
+    document_date: "2026-07-10",
+    event_date: null,
+    source_chunk: "Piyush usually takes the school bus on weekday mornings.",
+    stale: false,
+    label: "School bus",
+  },
+  {
+    id: "demo-safety",
+    child_id: DEMO_CHILD_ID,
+    type: "Safety",
+    properties: { concern: "dark alley near park entrance", severity: "moderate" },
+    confidence: 0.62,
+    sensitivity: "sensitive",
+    document_date: "2026-07-10",
+    event_date: null,
+    source_chunk: "Piyush mentioned feeling anxious near a dark alley by the park.",
+    stale: false,
+    label: "Park entrance concern",
+  },
+  {
+    id: "demo-implication",
+    child_id: DEMO_CHILD_ID,
+    type: "Implication",
+    properties: {
+      insight: "Coaching tone should reference school routine and avoid over-indexing on temple visits.",
+    },
+    confidence: 0.7,
+    sensitivity: "contextual",
+    document_date: "2026-07-10",
+    event_date: null,
+    source_chunk: "Aggregated from school, neighborhood, visit, and safety signals.",
+    stale: false,
+    label: "Coaching context",
+  },
+];
+
+const DEMO_EDGES = [
+  { id: "edge-1", source: "demo-child", target: "demo-school", type: "STUDIES_AT", weight: 0.91, properties: {} },
+  {
+    id: "edge-2",
+    source: "demo-child",
+    target: "demo-neighborhood",
+    type: "LIVES_NEAR",
+    weight: 0.88,
+    properties: {},
+  },
+  {
+    id: "edge-3",
+    source: "demo-neighborhood",
+    target: "demo-city",
+    type: "LOCATED_IN",
+    weight: 0.96,
+    properties: {},
+  },
+  {
+    id: "edge-4",
+    source: "demo-neighborhood",
+    target: "demo-economic",
+    type: "SIGNALS",
+    weight: 0.68,
+    properties: {},
+  },
+  { id: "edge-5", source: "demo-child", target: "demo-visit", type: "VISITED", weight: 0.79, properties: {} },
+  {
+    id: "edge-6",
+    source: "demo-child",
+    target: "demo-transport",
+    type: "COMMUTES_BY",
+    weight: 0.74,
+    properties: {},
+  },
+  {
+    id: "edge-7",
+    source: "demo-child",
+    target: "demo-safety",
+    type: "FEELS_UNSAFE_NEAR",
+    weight: 0.62,
+    properties: {},
+  },
+  {
+    id: "edge-8",
+    source: "demo-economic",
+    target: "demo-implication",
+    type: "INFORMS",
+    weight: 0.7,
+    properties: {},
+  },
+  {
+    id: "edge-9",
+    source: "demo-safety",
+    target: "demo-implication",
+    type: "INFORMS",
+    weight: 0.66,
+    properties: {},
+  },
+];
 
 // Custom Inline SVGs
 const Icon = {
@@ -162,17 +347,17 @@ function DashboardTokenControl({ token, setToken }) {
 
   return (
     <label className="flex items-center gap-2 min-w-0">
-      <span className="label whitespace-nowrap">API Token</span>
+      <span className="label whitespace-nowrap">Private API</span>
       <input
         type="password"
         value={token}
         onChange={(event) => updateToken(event.target.value)}
         autoComplete="off"
-        placeholder="Bearer token"
+        placeholder="optional token"
         className="field w-36 sm:w-44 font-mono"
       />
       <span className={`token-state ${hasToken ? "is-set" : ""}`}>
-        {hasToken ? "set" : "missing"}
+        {hasToken ? "private" : "demo"}
       </span>
     </label>
   );
@@ -489,7 +674,7 @@ function App() {
               <span className="label">Person ID</span>
               <input
                 value={person.id}
-                placeholder="e.g. aarav_01 (blank = current)"
+                placeholder="e.g. piyush_01 (blank = current)"
                 autoComplete="off"
                 onChange={(event) => setPerson({ ...person, id: event.target.value })}
                 className="field"
@@ -777,7 +962,7 @@ function InteractiveStack({ activeLayer, setActiveLayer }) {
 }
 
 function IngestPlayground({ childId, onInjected }) {
-  const [inputText, setInputText] = useState("Aarav study at Greenwood High. Yesterday they visited Shiva Temple in Koramangala.");
+  const [inputText, setInputText] = useState("Piyush studies at Greenwood High. Yesterday they visited Shiva Temple in Koramangala.");
   const [status, setStatus] = useState("idle"); // idle, simulating, success, injecting, inject_success, inject_failed
   const [logs, setLogs] = useState([]);
   const [simulatedNodes, setSimulatedNodes] = useState([]);
@@ -787,7 +972,7 @@ function IngestPlayground({ childId, onInjected }) {
   const presets = [
     {
       label: "School & Parents",
-      text: "Aarav studies at Greenwood High school in Koramangala. His father works as a software engineer at a startup."
+      text: "Piyush studies at Greenwood High school in Koramangala. His father works as a software engineer at a startup."
     },
     {
       label: "Temple Visit",
@@ -795,7 +980,7 @@ function IngestPlayground({ childId, onInjected }) {
     },
     {
       label: "Safety Anxiety",
-      text: "Aarav mentioned he feels anxious walking through the dark alley near the park entrance."
+      text: "Piyush mentioned he feels anxious walking through the dark alley near the park entrance."
     }
   ];
 
@@ -818,7 +1003,7 @@ function IngestPlayground({ childId, onInjected }) {
         setLogs((prev) => [...prev, step.text]);
         if (step.text.includes("Successfully")) {
           let nodes = [
-            { id: "1", label: "Aarav", type: "Child", sensitivity: "personal", x: 60, y: 80 },
+            { id: "1", label: "Piyush", type: "Child", sensitivity: "personal", x: 60, y: 80 },
             { id: "2", label: "Greenwood High", type: "School", sensitivity: "public", x: 190, y: 40 },
             { id: "3", label: "Koramangala", type: "Neighborhood", sensitivity: "public", x: 190, y: 120 }
           ];
@@ -829,7 +1014,7 @@ function IngestPlayground({ childId, onInjected }) {
 
           if (inputText.toLowerCase().includes("temple") || inputText.toLowerCase().includes("café")) {
             nodes = [
-              { id: "1", label: "Aarav", type: "Child", sensitivity: "personal", x: 60, y: 80 },
+              { id: "1", label: "Piyush", type: "Child", sensitivity: "personal", x: 60, y: 80 },
               { id: "4", label: "Shiva Temple", type: "Place", sensitivity: "public", x: 190, y: 45 },
               { id: "5", label: "South Indian Café", type: "Place", sensitivity: "public", x: 190, y: 115 }
             ];
@@ -839,7 +1024,7 @@ function IngestPlayground({ childId, onInjected }) {
             ];
           } else if (inputText.toLowerCase().includes("alley") || inputText.toLowerCase().includes("anxious")) {
             nodes = [
-              { id: "1", label: "Aarav", type: "Child", sensitivity: "personal", x: 60, y: 80 },
+              { id: "1", label: "Piyush", type: "Child", sensitivity: "personal", x: 60, y: 80 },
               { id: "6", label: "Dark Alley", type: "Tradeoff", sensitivity: "sensitive", x: 190, y: 40 },
               { id: "7", label: "Park Entrance", type: "Place", sensitivity: "public", x: 190, y: 120 }
             ];
@@ -2150,6 +2335,10 @@ function ProvenanceList({ provenance }) {
 }
 
 async function fetchJson(path, options = {}) {
+  if (isDemoMode() && String(path).startsWith("/api/")) {
+    return demoFetchJson(path, options);
+  }
+
   const response = await fetch(path, withDashboardAuth(path, options));
   const contentType = response.headers.get("content-type") || "";
   const body = contentType.includes("application/json")
@@ -2162,6 +2351,199 @@ async function fetchJson(path, options = {}) {
     throw new Error(body.detail || body.error || response.statusText);
   }
   return body;
+}
+
+async function demoFetchJson(path, options = {}) {
+  const method = String(options.method || "GET").toUpperCase();
+  const url = new URL(path, window.location.origin);
+  const segments = url.pathname.split("/").filter(Boolean).map(decodeURIComponent);
+
+  if (method === "GET" && url.pathname === "/api/health") {
+    return { status: "ok", mode: "demo" };
+  }
+  if (method === "GET" && url.pathname === "/api/children") {
+    return { children: [DEMO_CHILD_ID] };
+  }
+  if (segments[0] !== "api" || segments[1] !== "children" || !segments[2]) {
+    throw new Error("Demo route is not available.");
+  }
+
+  const childId = segments[2] || DEMO_CHILD_ID;
+  const action = segments.slice(3);
+
+  if (method === "GET" && action.length === 0) {
+    return { children: [DEMO_CHILD_ID] };
+  }
+  if (method === "GET" && action.join("/") === "summary") {
+    return {
+      summary: {
+        child_id: childId,
+        nodes: DEMO_NODES.length,
+        edges: DEMO_EDGES.length,
+        stale_nodes: DEMO_NODES.filter((node) => node.stale).length,
+        faiss_vectors: 0,
+        bm25_docs: DEMO_NODES.length,
+      },
+    };
+  }
+  if (method === "GET" && action.join("/") === "graph") {
+    const startId = url.searchParams.get("start_id");
+    if (!startId) {
+      return { child_id: childId, nodes: DEMO_NODES, edges: DEMO_EDGES, mode: "all" };
+    }
+    const connected = new Set([startId]);
+    for (const edge of DEMO_EDGES) {
+      if (edge.source === startId) connected.add(edge.target);
+      if (edge.target === startId) connected.add(edge.source);
+    }
+    return {
+      child_id: childId,
+      nodes: DEMO_NODES.filter((node) => connected.has(node.id)),
+      edges: DEMO_EDGES.filter((edge) => connected.has(edge.source) && connected.has(edge.target)),
+      mode: "traverse",
+    };
+  }
+  if (method === "GET" && action[0] === "nodes" && action[1]) {
+    const node = DEMO_NODES.find((item) => item.id === action[1]);
+    if (!node) throw new Error(`Node not found: ${action[1]}`);
+    const neighbors = await demoFetchJson(`/api/children/${childId}/graph?start_id=${encodeURIComponent(node.id)}`);
+    return {
+      node,
+      provenance: [
+        {
+          id: `${node.id}-source`,
+          timestamp: node.document_date,
+          text: node.source_chunk,
+        },
+      ],
+      neighbors,
+      convergence: Number((node.confidence * 2).toFixed(2)),
+    };
+  }
+  if (method === "GET" && action.join("/") === "stale") {
+    return { nodes: DEMO_NODES.filter((node) => node.stale) };
+  }
+  if (method === "GET" && action.join("/") === "profile") {
+    return {
+      profile: {
+        child_id: childId,
+        name: "Piyush",
+        location: "Koramangala, Bengaluru",
+        school: "Greenwood High",
+        inferred_context: {
+          economic_segment: "urban professional",
+          commute: "school bus",
+          safety_note: "moderate park entrance concern",
+        },
+        demo: true,
+      },
+    };
+  }
+  if (method === "GET" && action.join("/") === "context") {
+    return {
+      context: {
+        child_id: childId,
+        summary:
+          "Demo context: Piyush is represented as a profile connected to school, neighborhood, commute, visit, safety, and coaching implication nodes.",
+        relevant_nodes: DEMO_NODES.map((node) => ({ id: node.id, type: node.type, label: node.label })),
+        demo: true,
+      },
+    };
+  }
+  if (method === "GET" && action.join("/") === "coaching") {
+    return {
+      implications: [
+        {
+          title: "Use school routine as grounding context",
+          confidence: 0.7,
+          rationale: "School and commute nodes provide stable, non-sensitive context for agent responses.",
+        },
+      ],
+    };
+  }
+  if (method === "GET" && action.join("/") === "privacy/export") {
+    return {
+      export: {
+        child_id: childId,
+        demo: true,
+        note: "Public demo mode uses synthetic data only. No real child or user data is exported.",
+        nodes: DEMO_NODES.length,
+        edges: DEMO_EDGES.length,
+      },
+    };
+  }
+  if (method === "DELETE" && action.join("/") === "privacy") {
+    return {
+      status: "demo_noop",
+      child_id: childId,
+      note: "Privacy erase is disabled in public demo mode because no real data is stored.",
+    };
+  }
+  if (method === "POST" && action.join("/") === "ingest") {
+    const body = readDemoBody(options);
+    const text = String(body.text || "").trim();
+    if (!text) throw new Error("text is required");
+    return {
+      result: {
+        status: "demo_simulated",
+        child_id: childId,
+        signals: 3,
+        note: "Demo mode simulated ingestion without writing to the backend database.",
+        preview: text.slice(0, 160),
+      },
+    };
+  }
+  if (method === "POST" && action.join("/") === "person") {
+    const body = readDemoBody(options);
+    return {
+      result: {
+        status: "demo_simulated",
+        child_id: childId,
+        name: body.name || "Demo person",
+        note: "Demo mode simulated profile creation without writing to Neo4j.",
+      },
+    };
+  }
+  if (method === "POST" && action.join("/") === "episodes/segment") {
+    return {
+      result: {
+        status: "demo_simulated",
+        child_id: childId,
+        episodes: 2,
+        episode_ids: ["demo-episode-school", "demo-episode-visit"],
+      },
+    };
+  }
+  if (method === "POST" && action.join("/") === "location/acquire") {
+    const body = readDemoBody(options);
+    return {
+      result: {
+        status: "demo_simulated",
+        child_id: childId,
+        location: "Koramangala, Bengaluru",
+        location_resolved: true,
+        lat: body.lat,
+        lng: body.lng,
+        accuracy_m: body.accuracy_m,
+        note: "Browser coordinates were not sent to the production API in demo mode.",
+      },
+    };
+  }
+
+  throw new Error("Demo route is not available.");
+}
+
+function readDemoBody(options) {
+  if (!options?.body) return {};
+  try {
+    return JSON.parse(options.body);
+  } catch (_error) {
+    return {};
+  }
+}
+
+function isDemoMode() {
+  return !sessionStorage.getItem(DASHBOARD_TOKEN_KEY)?.trim();
 }
 
 function withDashboardAuth(path, options = {}) {
