@@ -2423,24 +2423,22 @@ version = "0.2.1"
 source = { editable = "." }
 dependencies = [
     { name = "bm25s" },
-    { name = "fastapi", extra = ["standard"] },
-    { name = "neo4j" },
-    { name = "numpy" },
-    { name = "pydantic" },
-]
-
-[package.optional-dependencies]
-all = [
     { name = "exa-py" },
     { name = "faiss-cpu" },
+    { name = "fastapi", extra = ["standard"] },
     { name = "geopandas" },
     { name = "google-genai" },
     { name = "h3" },
     { name = "httpx" },
+    { name = "neo4j" },
+    { name = "numpy" },
     { name = "openai" },
+    { name = "pydantic" },
     { name = "shapely" },
     { name = "spacy" },
 ]
+
+[package.optional-dependencies]
 dev = [
     { name = "build" },
     { name = "hatchling" },
@@ -2451,69 +2449,33 @@ dev = [
     { name = "ruff" },
     { name = "testcontainers", extra = ["neo4j"] },
 ]
-gemini = [
-    { name = "google-genai" },
-]
-geo = [
-    { name = "geopandas" },
-    { name = "h3" },
-    { name = "shapely" },
-]
-local = [
-    { name = "httpx" },
-]
-nlp = [
-    { name = "spacy" },
-]
-online = [
-    { name = "exa-py" },
-]
-openai = [
-    { name = "openai" },
-]
-openrouter = [
-    { name = "openai" },
-]
-vector = [
-    { name = "faiss-cpu" },
-]
 
 [package.metadata]
 requires-dist = [
     { name = "bm25s", specifier = ">=0.3.9" },
     { name = "build", marker = "extra == 'dev'", specifier = ">=1.2.0" },
-    { name = "exa-py", marker = "extra == 'all'", specifier = ">=1.0.0" },
-    { name = "exa-py", marker = "extra == 'online'", specifier = ">=1.0.0" },
-    { name = "faiss-cpu", marker = "extra == 'all'", specifier = ">=1.7.4" },
-    { name = "faiss-cpu", marker = "extra == 'vector'", specifier = ">=1.7.4" },
+    { name = "exa-py", specifier = ">=1.0.0" },
+    { name = "faiss-cpu", specifier = ">=1.7.4" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.115.0" },
-    { name = "geopandas", marker = "extra == 'all'", specifier = ">=0.14.0" },
-    { name = "geopandas", marker = "extra == 'geo'", specifier = ">=0.14.0" },
-    { name = "google-genai", marker = "extra == 'all'", specifier = ">=1.0.0" },
-    { name = "google-genai", marker = "extra == 'gemini'", specifier = ">=1.0.0" },
-    { name = "h3", marker = "extra == 'all'", specifier = ">=4.5.0" },
-    { name = "h3", marker = "extra == 'geo'", specifier = ">=4.5.0" },
+    { name = "geopandas", specifier = ">=0.14.0" },
+    { name = "google-genai", specifier = ">=1.0.0" },
+    { name = "h3", specifier = ">=4.5.0" },
     { name = "hatchling", marker = "extra == 'dev'", specifier = ">=1.27.0" },
-    { name = "httpx", marker = "extra == 'all'", specifier = ">=0.27.0" },
-    { name = "httpx", marker = "extra == 'local'", specifier = ">=0.27.0" },
+    { name = "httpx", specifier = ">=0.27.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.10.0" },
     { name = "neo4j", specifier = ">=5.0.0" },
     { name = "numpy", specifier = ">=1.24.0" },
-    { name = "openai", marker = "extra == 'all'", specifier = ">=1.0.0" },
-    { name = "openai", marker = "extra == 'openai'", specifier = ">=1.0.0" },
-    { name = "openai", marker = "extra == 'openrouter'", specifier = ">=1.0.0" },
+    { name = "openai", specifier = ">=1.0.0" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4.0" },
-    { name = "shapely", marker = "extra == 'all'", specifier = ">=2.0.0" },
-    { name = "shapely", marker = "extra == 'geo'", specifier = ">=2.0.0" },
-    { name = "spacy", marker = "extra == 'all'", specifier = ">=3.7.0" },
-    { name = "spacy", marker = "extra == 'nlp'", specifier = ">=3.7.0" },
+    { name = "shapely", specifier = ">=2.0.0" },
+    { name = "spacy", specifier = ">=3.7.0" },
     { name = "testcontainers", extras = ["neo4j"], marker = "extra == 'dev'", specifier = ">=4.0.0" },
 ]
-provides-extras = ["vector", "gemini", "openai", "openrouter", "local", "nlp", "online", "geo", "dev", "all"]
+provides-extras = ["dev"]
 
 [[package]]
 name = "spacy"

@@ -17,7 +17,7 @@ categories. Optional online and LLM providers can enrich that data when configur
 
 - Extracts or accepts structured signals such as location, education, profession,
   visits, language, housing, and lifestyle.
-- Enriches signals through offline providers and optional online providers.
+- Enriches signals through offline providers and configured online providers.
 - Stores context as a graph with typed nodes, edges, confidence, timestamps, and data
   sensitivity levels.
 - Produces structured profiles and LLM-ready context blocks.
@@ -32,24 +32,15 @@ This is infrastructure for context-aware applications.
 pip install sociomemory
 ```
 
-Optional extras:
-
-```bash
-pip install "sociomemory[vector]"      # FAISS vector recall
-pip install "sociomemory[gemini]"      # Gemini LLM adapter
-pip install "sociomemory[openai]"      # OpenAI LLM adapter
-pip install "sociomemory[openrouter]"  # OpenRouter LLM adapter
-pip install "sociomemory[online]"      # Exa enrichment provider
-pip install "sociomemory[nlp]"         # spaCy-assisted NER
-pip install "sociomemory[geo]"         # Geo helpers
-pip install "sociomemory[all]"         # All optional runtime extras
-```
+The standard install includes runtime libraries for graph storage, vector recall,
+LLM adapters, Exa enrichment, spaCy-assisted NER, and geo helpers. No runtime
+extras are required.
 
 ## Requirements
 
 - Python 3.11+
 - Neo4j 5.x, unless you provide a custom `GraphBackend`
-- Optional API keys for hosted LLM or online enrichment providers
+- API keys for hosted LLM or online enrichment providers when those features are enabled
 
 For a local Neo4j instance:
 
