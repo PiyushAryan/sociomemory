@@ -1,7 +1,7 @@
 # sociomemory
 
 [![PyPI](https://img.shields.io/pypi/v/sociomemory.svg)](https://pypi.org/project/sociomemory/)
-![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+![Python](https://img.shields.io/badge/python-3.11--3.13-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 `sociomemory` is a Python package for building a graph of social, economic, cultural,
@@ -38,7 +38,7 @@ extras are required.
 
 ## Requirements
 
-- Python 3.11+
+- Python 3.11, 3.12, or 3.13
 - Neo4j 5.x, unless you provide a custom `GraphBackend`
 - API keys for hosted LLM or online enrichment providers when those features are enabled
 
