@@ -379,6 +379,7 @@ function App() {
   const [selectedNodeId, setSelectedNodeId] = useState(null);
   const [detail, setDetail] = useState(null);
   const [output, setOutput] = useState("");
+  const [warningMessages, setWarningMessages] = useState([]);
   const [status, setStatus] = useState("Idle");
   const [ingestText, setIngestText] = useState("");
   const [person, setPerson] = useState({
@@ -483,11 +484,13 @@ function App() {
         body: JSON.stringify({ text, source: "conversation" }),
       });
       setOutput(JSON.stringify(result, null, 2));
+      setWarningMessages(collectWarnings(result));
       await loadGraph(childId);
       setIngestText("");
     } catch (error) {
       setStatus("Ingest failed");
       setOutput(errorToText(error));
+      setWarningMessages([]);
     }
   }
 
@@ -511,6 +514,7 @@ function App() {
         }),
       });
       setOutput(JSON.stringify(result, null, 2));
+      setWarningMessages(collectWarnings(result));
       setDraftChildId(personId);
       setChildId(personId);
       setPerson({
@@ -525,6 +529,7 @@ function App() {
     } catch (error) {
       setStatus("Save failed");
       setOutput(errorToText(error));
+      setWarningMessages([]);
     }
   }
 
@@ -807,6 +812,7 @@ function App() {
               onChange={(event) => setIngestText(event.target.value)}
               className="field"
             />
+            <WarningBanner warnings={warningMessages} />
           </section>
         </aside>
 
@@ -855,8 +861,9 @@ function App() {
           <section className="card max-h-[240px] overflow-y-auto">
             <div className="card-head">
               <h2 className="card-title"><span className="sec-index">06</span>Output terminal</h2>
-              {output && <button type="button" onClick={() => setOutput("")} className="btn btn-ghost btn-sm"><Icon.Clear />Clear</button>}
+              {output && <button type="button" onClick={() => { setOutput(""); setWarningMessages([]); }} className="btn btn-ghost btn-sm"><Icon.Clear />Clear</button>}
             </div>
+            <WarningBanner warnings={warningMessages} compact />
             <pre className="m-0 text-accent bg-bg rounded-none p-2.5 border border-line flex-1 overflow-y-auto font-mono text-[11px]">{output || "Awaiting operation logs..."}</pre>
           </section>
         </aside>
@@ -872,6 +879,18 @@ function Metric({ label, value }) {
     <div className="metric">
       <dt className="metric-label">{label}</dt>
       <dd className="metric-value">{value ?? "-"}</dd>
+    </div>
+  );
+}
+
+function WarningBanner({ warnings, compact = false }) {
+  if (!warnings?.length) return null;
+  return (
+    <div className={`warning-banner ${compact ? "warning-banner-compact" : ""}`}>
+      <strong>LLM warning</strong>
+      {warnings.map((warning, index) => (
+        <span key={`${index}-${warning}`}>{warning}</span>
+      ))}
     </div>
   );
 }
@@ -1003,6 +1022,7 @@ function IngestPlayground({ childId, onInjected }) {
   const [simulatedNodes, setSimulatedNodes] = useState([]);
   const [simulatedEdges, setSimulatedEdges] = useState([]);
   const [realOutput, setRealOutput] = useState("");
+  const [warningMessages, setWarningMessages] = useState([]);
 
   const presets = [
     {
@@ -1087,10 +1107,12 @@ function IngestPlayground({ childId, onInjected }) {
         body: JSON.stringify({ text: inputText, source: "conversation" }),
       });
       setRealOutput(JSON.stringify(result, null, 2));
+      setWarningMessages(collectWarnings(result));
       setStatus("inject_success");
       if (onInjected) onInjected();
     } catch (error) {
       setRealOutput(error.message || "Ingest failed");
+      setWarningMessages([]);
       setStatus("inject_failed");
     }
   };
@@ -1192,13 +1214,14 @@ function IngestPlayground({ childId, onInjected }) {
               {status === "injecting" && <div className="text-accent animate-pulse">⚡ Injecting into DB...</div>}
               {status === "inject_success" && (
                 <div className="text-ok font-bold">
-                  🎉 Graph successfully committed. Stats and recent timeline updated.
+                  Graph successfully committed. Stats and recent timeline updated.
+                  <WarningBanner warnings={warningMessages} compact />
                   <pre className="text-[9px] mt-2 p-1.5 bg-panel-solid rounded-none border border-line text-ink leading-normal overflow-x-auto max-w-full">{realOutput}</pre>
                 </div>
               )}
               {status === "inject_failed" && (
                 <div className="text-danger font-bold">
-                  ❌ Ingestion failed:
+                  Ingestion failed:
                   <pre className="text-[9px] mt-2 p-1.5 bg-panel-solid rounded-none border border-line text-ink leading-normal overflow-x-auto max-w-full">{realOutput}</pre>
                 </div>
               )}
@@ -2608,6 +2631,29 @@ function trimLabel(label) {
 
 function errorToText(error) {
   return error instanceof Error ? error.message : String(error);
+}
+
+function collectWarnings(value) {
+  const warnings = new Set();
+
+  function visit(item) {
+    if (!item || typeof item !== "object") return;
+    if (Array.isArray(item)) {
+      item.forEach(visit);
+      return;
+    }
+    if (Array.isArray(item.warnings)) {
+      item.warnings.forEach((warning) => {
+        if (typeof warning === "string" && warning.trim()) {
+          warnings.add(warning.trim());
+        }
+      });
+    }
+    Object.values(item).forEach(visit);
+  }
+
+  visit(value);
+  return Array.from(warnings);
 }
 
 createRoot(document.getElementById("root")).render(

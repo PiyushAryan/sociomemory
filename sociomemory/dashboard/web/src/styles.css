@@ -219,6 +219,21 @@ pre,
     background: color-mix(in srgb, var(--ok) 8%, transparent);
   }
 
+  .warning-banner {
+    @apply mt-3 flex flex-col gap-1 border px-2.5 py-2 text-[11px] leading-relaxed;
+    color: var(--warn);
+    border-color: color-mix(in srgb, var(--warn) 35%, var(--line));
+    background: color-mix(in srgb, var(--warn) 8%, transparent);
+  }
+  .warning-banner strong {
+    font-family: var(--font-mono);
+    @apply text-[10px] font-bold uppercase;
+    letter-spacing: 0.08em;
+  }
+  .warning-banner-compact {
+    @apply my-2 text-[10px];
+  }
+
   .btn {
     @apply inline-flex items-center justify-center gap-1.5 h-8 px-3.5 text-xs font-semibold cursor-pointer;
     border-radius: 0;

@@ -109,7 +109,7 @@ async def test_confidence_clamped():
 
 
 @pytest.mark.asyncio
-async def test_degraded_spacy_only_uses_label_map(monkeypatch):
+async def test_no_llm_ignores_spacy_candidates(monkeypatch):
     from sociomemory.pipeline import extractor as ex
     from sociomemory.pipeline.ner import Candidate
 
@@ -118,8 +118,7 @@ async def test_degraded_spacy_only_uses_label_map(monkeypatch):
     )
     extractor = SignalExtractor()  # no LLM
     signals = await extractor.extract("Koramangala")
-    loc = [s for s in signals if s.signal_type == SignalType.LOCATION]
-    assert loc and loc[0].confidence <= 0.6
+    assert signals == []
 
 
 @pytest.mark.asyncio
@@ -134,7 +133,7 @@ async def test_no_spacy_no_llm_yields_only_visits(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_llm_failure_falls_back_to_label_heuristic(monkeypatch):
+async def test_llm_failure_does_not_fall_back_to_label_heuristic(monkeypatch):
     from sociomemory.pipeline import extractor as ex
     from sociomemory.pipeline.ner import Candidate
 
@@ -148,7 +147,7 @@ async def test_llm_failure_falls_back_to_label_heuristic(monkeypatch):
 
     extractor = SignalExtractor(llm=BadLLM(""))
     signals = await extractor.extract("Koramangala")
-    assert any(s.signal_type == SignalType.LOCATION for s in signals)
+    assert signals == []
 
 
 @pytest.mark.asyncio

@@ -77,3 +77,15 @@ async def test_sociomemory_accepts_custom_graph_backend(tmp_path):
     backend.connect.assert_awaited_once()
     backend.init_schema.assert_awaited_once()
     backend.close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_ingest_without_llm_returns_warning(tmp_path):
+    memory = Sociomemory(SociomemoryConfig(data_dir=tmp_path, llm_backend="none"))
+
+    result = await memory.ingest("child", "hum Koramangala mein rehte hain")
+
+    assert result["status"] == "no_signals"
+    assert "LLM is not configured" in result["warnings"][0]
+    memory._cache.close()
+    memory._consent.close()

@@ -52,18 +52,6 @@ PLACE_TYPES = {
     "aquarium": ("aquarium", None),
 }
 
-# Degraded mode only (spaCy present, LLM absent): map ONLY unambiguous labels.
-# ORG (school vs employer), PERSON (parent vs teacher vs friend), and NORP
-# (nationality vs religion) are deliberately excluded — guessing their role
-# without the LLM plants wrong signals.
-_LABEL_MAP = {
-    "GPE": SignalType.LOCATION,
-    "LOC": SignalType.LOCATION,
-    "LANGUAGE": SignalType.LANGUAGE,
-}
-
-_DEGRADED_CONFIDENCE = 0.6
-
 _VALID_SIGNAL_VALUES = {t.value for t in SignalType}
 
 
@@ -78,14 +66,11 @@ class SignalExtractor:
         signals: list[Signal] = []
         # Lane A: offline place/visit keyword scan.
         signals.extend(self._extract_visit(text, source, now))
-        if text.strip():
-            # Lane B: optional spaCy candidate hints.
+        if text.strip() and self._llm:
+            # spaCy candidates are only hints for LLM typing; they are not used as a
+            # standalone degraded extraction mode.
             candidates = spacy_candidates(text)
-            # Lane C: LLM discovery + typing (primary), or degraded label heuristic.
-            if self._llm:
-                signals.extend(await self._llm_type_entities(text, candidates, source, now))
-            else:
-                signals.extend(self._label_heuristic(candidates, text, source, now))
+            signals.extend(await self._llm_type_entities(text, candidates, source, now))
         return self._dedup(signals)
 
     def _extract_visit(self, text: str, source: SignalSource, now: datetime) -> list[Signal]:
@@ -118,7 +103,7 @@ class SignalExtractor:
     ) -> list[Signal]:
         llm = self._llm
         if llm is None:
-            return self._label_heuristic(candidates, text, source, now)
+            return []
         hints = ", ".join(sorted({c.text for c in candidates})) or "(none)"
         types = "/".join(t.value for t in SignalType)
         system = (
@@ -139,7 +124,7 @@ class SignalExtractor:
             data = json.loads(self._strip_fences(resp))
         except Exception as exc:
             logger.debug("LLM typing failed: %s", exc)
-            return self._label_heuristic(candidates, text, source, now)
+            return []
         if not isinstance(data, list):
             # Parseable but off-contract shape: not a failure — Lane A signals still stand.
             return []
@@ -152,30 +137,6 @@ class SignalExtractor:
             except Exception as exc:  # malformed field types from the LLM
                 logger.debug("skipping malformed LLM item %r: %s", item, exc)
         return signals
-
-    def _label_heuristic(
-        self,
-        candidates: list[Candidate],
-        text: str,
-        source: SignalSource,
-        now: datetime,
-    ) -> list[Signal]:
-        out: list[Signal] = []
-        for cand in candidates:
-            signal_type = _LABEL_MAP.get(cand.label)
-            if signal_type is None:
-                continue
-            out.append(
-                Signal(
-                    raw_text=text,
-                    signal_type=signal_type,
-                    extracted_value=cand.text,
-                    confidence=_DEGRADED_CONFIDENCE,
-                    source=source,
-                    timestamp=now,
-                )
-            )
-        return out
 
     @staticmethod
     def _strip_fences(resp: str) -> str:

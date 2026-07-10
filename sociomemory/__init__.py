@@ -184,6 +184,12 @@ class Sociomemory:
         return {"child_id": child_id, "name": name, "steps": steps, "summary": summary}
 
     async def ingest(self, child_id: str, text: str, source: str = "conversation") -> dict:
+        warnings = []
+        if self._llm is None:
+            warnings.append(
+                "LLM is not configured; free-text extraction is limited to explicit offline "
+                "visit keywords. Configure an LLM backend for full entity extraction."
+            )
         extractor = SignalExtractor(llm=self._llm)
         source_enum = (
             SignalSource(source)
@@ -193,7 +199,10 @@ class Sociomemory:
         signals = await extractor.extract(text, source=source_enum)
 
         if not signals:
-            return {"status": "no_signals"}
+            result = {"status": "no_signals"}
+            if warnings:
+                result["warnings"] = warnings
+            return result
 
         for signal in signals:
             self._require_signal_consent(child_id, signal.signal_type)
@@ -203,6 +212,8 @@ class Sociomemory:
         pipeline = EnrichmentPipeline(graph=graph, providers=providers_map)
         result = await pipeline.enrich(signals)
         result["signals"] = len(signals)
+        if warnings:
+            result["warnings"] = warnings
         return result
 
     async def ingest_signal(
