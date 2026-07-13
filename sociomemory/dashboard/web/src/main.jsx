@@ -382,6 +382,7 @@ function App() {
   const [selectedNodeId, setSelectedNodeId] = useState(null);
   const [detail, setDetail] = useState(null);
   const [output, setOutput] = useState("");
+  const [runtimeWarnings, setRuntimeWarnings] = useState([]);
   const [warningMessages, setWarningMessages] = useState([]);
   const [status, setStatus] = useState("Idle");
   const [ingestText, setIngestText] = useState("");
@@ -443,6 +444,24 @@ function App() {
     () => graph.edges.filter((edge) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target)),
     [graph.edges, visibleNodeIds],
   );
+  const toastWarnings = useMemo(
+    () => Array.from(new Set([...runtimeWarnings, ...warningMessages])),
+    [runtimeWarnings, warningMessages],
+  );
+
+  useEffect(() => {
+    let active = true;
+    fetchJson("/api/health")
+      .then((payload) => {
+        if (active) setRuntimeWarnings(collectWarnings(payload));
+      })
+      .catch(() => {
+        if (active) setRuntimeWarnings([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [dashboardToken]);
 
   useEffect(() => {
     loadGraph(childId);
@@ -622,6 +641,7 @@ function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-bg text-ink">
+      <WarningToast warnings={toastWarnings} />
       {routeView === "overview" ? (
         <Overview
           summary={summary}
@@ -898,6 +918,36 @@ function WarningBanner({ warnings, compact = false }) {
   );
 }
 
+function WarningToast({ warnings }) {
+  const [visible, setVisible] = useState(false);
+  const key = warnings?.join("\n") || "";
+
+  useEffect(() => {
+    if (!warnings?.length) {
+      setVisible(false);
+      return undefined;
+    }
+    setVisible(true);
+    const timer = window.setTimeout(() => setVisible(false), 9000);
+    return () => window.clearTimeout(timer);
+  }, [key, warnings?.length]);
+
+  if (!warnings?.length || !visible) return null;
+  return (
+    <div className="warning-toast" role="status" aria-live="polite">
+      <div>
+        <strong>LLM warning</strong>
+        {warnings.map((warning, index) => (
+          <span key={`${index}-${warning}`}>{warning}</span>
+        ))}
+      </div>
+      <button type="button" onClick={() => setVisible(false)} aria-label="Close warning">
+        Close
+      </button>
+    </div>
+  );
+}
+
 function NotFound() {
   return (
     <div className="min-h-screen grid place-items-center bg-bg text-ink p-6">
@@ -1122,6 +1172,7 @@ function IngestPlayground({ childId, onInjected }) {
 
   return (
     <section className="glass-panel p-6 border border-line my-12 relative overflow-hidden">
+      <WarningToast warnings={warningMessages} />
       <div className="absolute top-0 right-0 w-80 h-80 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.04),transparent_60%)] pointer-events-none" />
       <div className="grid lg:grid-cols-[1fr_1.1fr] gap-8">
         {/* Input Panel */}

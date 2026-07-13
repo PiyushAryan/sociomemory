@@ -194,6 +194,37 @@ async def test_llm_discovers_non_keyword_visit(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_llm_extracts_named_venue_visit_without_keyword(monkeypatch):
+    from sociomemory.pipeline import extractor as ex
+
+    monkeypatch.setattr(ex, "spacy_candidates", lambda text: [])
+    llm = FakeLLM(
+        '[{"value":"Blue Lantern Diner","signal_type":"visit",'
+        '"confidence":0.88,"place_type":"restaurant"}]'
+    )
+    extractor = SignalExtractor(llm=llm)
+    signals = await extractor.extract("I went to Blue Lantern Diner today")
+    visits = [s for s in signals if s.signal_type == SignalType.VISIT]
+    assert len(visits) == 1
+    assert visits[0].extracted_value == "Blue Lantern Diner"
+    assert visits[0].place_type == "restaurant"
+
+
+@pytest.mark.asyncio
+async def test_llm_prompt_requests_named_venues_and_proper_nouns(monkeypatch):
+    from sociomemory.pipeline import extractor as ex
+
+    monkeypatch.setattr(ex, "spacy_candidates", lambda text: [])
+    llm = FakeLLM("[]")
+    extractor = SignalExtractor(llm=llm)
+    await extractor.extract("I went to a named venue today")
+    prompt = llm.calls[0]
+    assert "named venues" in prompt
+    assert "Preserve exact proper nouns" in prompt
+    assert "restaurants, cafes, parks" in prompt
+
+
+@pytest.mark.asyncio
 async def test_llm_handles_json_code_fence(monkeypatch):
     from sociomemory.pipeline import extractor as ex
 

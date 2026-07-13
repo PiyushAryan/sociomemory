@@ -107,13 +107,22 @@ class SignalExtractor:
         hints = ", ".join(sorted({c.text for c in candidates})) or "(none)"
         types = "/".join(t.value for t in SignalType)
         system = (
-            "You extract socioeconomic signals about a child and family from short, "
+            "You extract durable memory signals about a child and family from short, "
             "often code-mixed (Hindi/English) text. Reply with ONLY a JSON array."
         )
         prompt = (
             f"Candidate entities already detected: {hints}\n"
-            "Classify each candidate that is a socioeconomic signal, AND add any "
+            "Classify each candidate that is a useful memory signal, AND add any "
             "signals present in the text that are not in the candidate list.\n"
+            "Extract explicit visits to named venues and public places as visit signals. "
+            "This includes restaurants, cafes, parks, malls, schools, workplaces, "
+            "religious places, transit points, attractions, hospitals, clinics, and "
+            "other named places. Preserve exact proper nouns for venue, brand, company, "
+            "school, workplace, and locality names.\n"
+            "For visits, set value to the exact mentioned place name and set place_type "
+            "to a generic category such as restaurant, cafe, park, mall, school, "
+            "workplace, public_place, attraction, transit, hospital, clinic, religious_place, "
+            "or unknown_place. Do not require the category to appear in a fixed list.\n"
             f'Each object: {{"value": str, "signal_type": one of [{types}], '
             '"confidence": 0-1, "place_type": optional str for visits}}.\n'
             "Omit anything that is not a real signal.\n\n"

@@ -118,8 +118,8 @@ config = SociomemoryConfig(
     neo4j_uri="neo4j+s://your-db.databases.neo4j.io",
     neo4j_user="neo4j",
     neo4j_password="your-password",
-    llm_backend="gemini",
-    llm_api_key="your-gemini-key",
+    llm_backend="openai",
+    llm_api_key="your-openai-key",
 )
 
 
@@ -137,8 +137,8 @@ async def main():
 asyncio.run(main())
 ```
 
-Supported LLM backends are `gemini`, `openai`, `openrouter`, `ollama`, `local`, and
-`none`.
+OpenAI is the default LLM backend. Supported LLM backends are `openai`, `gemini`,
+`openrouter`, `ollama`, `local`, and `none`.
 
 ## Configuration
 

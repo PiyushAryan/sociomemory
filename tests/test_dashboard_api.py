@@ -110,11 +110,35 @@ def auth_headers() -> dict[str, str]:
 
 def test_health_is_public_without_dashboard_token(monkeypatch):
     monkeypatch.delenv("SOCIOMEMORY_DASHBOARD_TOKEN", raising=False)
+    monkeypatch.delenv("SOCIOMEMORY_LLM_BACKEND", raising=False)
+    monkeypatch.delenv("LLM_BACKEND", raising=False)
+    monkeypatch.delenv("LLM_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
 
     response = client().get("/api/health")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    payload = response.json()
+    assert payload["status"] == "ok"
+    assert payload["llm_configured"] is False
+    assert "LLM is not configured" in payload["warnings"][0]
+
+
+def test_health_reports_openai_llm_when_configured(monkeypatch):
+    monkeypatch.delenv("SOCIOMEMORY_DASHBOARD_TOKEN", raising=False)
+    monkeypatch.setenv("SOCIOMEMORY_LLM_BACKEND", "openai")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+
+    response = client().get("/api/health")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["llm_backend"] == "openai"
+    assert payload["llm_configured"] is True
+    assert payload["warnings"] == []
 
 
 def test_protected_routes_require_configured_token(monkeypatch):

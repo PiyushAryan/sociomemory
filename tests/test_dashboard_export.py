@@ -2,9 +2,63 @@ from __future__ import annotations
 
 import pytest
 
-from sociomemory.dashboard.export import DashboardService, edge_to_dict, node_to_dict
+from sociomemory.dashboard.export import (
+    DashboardService,
+    config_from_env,
+    edge_to_dict,
+    node_to_dict,
+)
 from sociomemory.graph.memory_graph import Subgraph
 from sociomemory.graph.nodes import DataLevel, Node, NodeType
+
+
+def test_config_from_env_defaults_to_openai_when_openai_key_exists(monkeypatch):
+    monkeypatch.delenv("SOCIOMEMORY_LLM_BACKEND", raising=False)
+    monkeypatch.delenv("LLM_BACKEND", raising=False)
+    monkeypatch.delenv("LLM_API_KEY", raising=False)
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+
+    config = config_from_env()
+
+    assert config.llm_backend == "openai"
+    assert config.llm_api_key == "sk-test"
+
+
+def test_config_from_env_defaults_to_openai_without_backend_env(monkeypatch):
+    monkeypatch.delenv("SOCIOMEMORY_LLM_BACKEND", raising=False)
+    monkeypatch.delenv("LLM_BACKEND", raising=False)
+    monkeypatch.delenv("LLM_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+
+    config = config_from_env()
+
+    assert config.llm_backend == "openai"
+    assert config.llm_api_key == ""
+
+
+def test_config_from_env_does_not_default_neo4j_credentials(monkeypatch):
+    monkeypatch.delenv("SOCIOMEMORY_NEO4J_USER", raising=False)
+    monkeypatch.delenv("NEO4J_USER", raising=False)
+    monkeypatch.delenv("NEO4J_USERNAME", raising=False)
+    monkeypatch.delenv("SOCIOMEMORY_NEO4J_PASSWORD", raising=False)
+    monkeypatch.delenv("NEO4J_PASSWORD", raising=False)
+
+    config = config_from_env()
+
+    assert config.neo4j_user == ""
+    assert config.neo4j_password == ""
+
+
+def test_config_from_env_reads_neo4j_credentials_from_env(monkeypatch):
+    monkeypatch.setenv("SOCIOMEMORY_NEO4J_USER", "configured-user")
+    monkeypatch.setenv("SOCIOMEMORY_NEO4J_PASSWORD", "configured-password")
+
+    config = config_from_env()
+
+    assert config.neo4j_user == "configured-user"
+    assert config.neo4j_password == "configured-password"
 
 
 def make_node(node_id: str = "node-1", **props) -> Node:

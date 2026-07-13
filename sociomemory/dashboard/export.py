@@ -67,9 +67,9 @@ class DashboardConfig:
 
 def config_from_env() -> SociomemoryConfig:
     data_dir = os.getenv("SOCIOMEMORY_DATA_DIR")
-    backend = os.getenv("SOCIOMEMORY_LLM_BACKEND", os.getenv("LLM_BACKEND", "gemini"))
-    # Backend-aware key: prefer the provider-specific key so a stale
-    # SOCIOMEMORY_LLM_API_KEY (e.g. an OpenRouter key) doesn't shadow it.
+    backend = os.getenv("SOCIOMEMORY_LLM_BACKEND") or os.getenv("LLM_BACKEND") or _default_llm_backend()
+    # Backend-aware key: prefer provider-specific keys so stale generic keys
+    # don't shadow the intended provider.
     backend_key = {
         "openai": os.getenv("OPENAI_API_KEY", ""),
         "gemini": os.getenv("GEMINI_API_KEY", os.getenv("GOOGLE_API_KEY", "")),
@@ -77,7 +77,6 @@ def config_from_env() -> SociomemoryConfig:
     }.get(backend.lower(), "")
     llm_api_key = (
         backend_key
-        or os.getenv("SOCIOMEMORY_LLM_API_KEY", "")
         or os.getenv("LLM_API_KEY", "")
         or os.getenv("OPENROUTER_API_KEY", "")
     )
@@ -85,13 +84,8 @@ def config_from_env() -> SociomemoryConfig:
         neo4j_uri=os.getenv(
             "SOCIOMEMORY_NEO4J_URI", os.getenv("NEO4J_URI", "bolt://localhost:7687")
         ),
-        neo4j_user=os.getenv(
-            "SOCIOMEMORY_NEO4J_USER",
-            os.getenv("NEO4J_USER", os.getenv("NEO4J_USERNAME", "neo4j")),
-        ),
-        neo4j_password=os.getenv(
-            "SOCIOMEMORY_NEO4J_PASSWORD", os.getenv("NEO4J_PASSWORD", "password")
-        ),
+        neo4j_user=_env_first("SOCIOMEMORY_NEO4J_USER", "NEO4J_USER", "NEO4J_USERNAME"),
+        neo4j_password=_env_first("SOCIOMEMORY_NEO4J_PASSWORD", "NEO4J_PASSWORD"),
         neo4j_database=os.getenv(
             "SOCIOMEMORY_NEO4J_DATABASE", os.getenv("NEO4J_DATABASE", "neo4j")
         ),
@@ -111,6 +105,18 @@ def config_from_env() -> SociomemoryConfig:
         embedding_dim=int(os.getenv("SOCIOMEMORY_EMBEDDING_DIM", "768")),
         exa_api_key=os.getenv("SOCIOMEMORY_EXA_API_KEY", os.getenv("EXA_API_KEY", "")),
     )
+
+
+def _env_first(*names: str) -> str:
+    for name in names:
+        value = os.getenv(name)
+        if value is not None:
+            return value
+    return ""
+
+
+def _default_llm_backend() -> str:
+    return "openai"
 
 
 def node_to_dict(node: Node) -> dict[str, Any]:

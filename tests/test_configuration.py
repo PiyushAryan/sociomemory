@@ -20,7 +20,13 @@ def test_config_validation_has_no_filesystem_side_effect(tmp_path):
 
     assert config.llm_backend == "none"
     assert config.country == "IN"
+    assert config.neo4j_user == ""
+    assert config.neo4j_password == ""
     assert not data_dir.exists()
+
+
+def test_config_defaults_to_openai_backend():
+    assert SociomemoryConfig().llm_backend == "openai"
 
 
 @pytest.mark.parametrize(

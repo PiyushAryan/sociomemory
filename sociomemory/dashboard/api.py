@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from sociomemory.dashboard.export import DashboardService
+from sociomemory.dashboard.export import DashboardService, config_from_env
 
 ServiceFactory = Callable[[], DashboardService]
 
@@ -47,8 +47,27 @@ def create_app(service_factory: ServiceFactory = DashboardService.from_env) -> F
     _configure_exception_handlers(app)
 
     @app.get("/api/health")
-    async def health() -> dict[str, str]:
-        return {"status": "ok"}
+    async def health() -> dict[str, Any]:
+        config = config_from_env()
+        if config.llm_backend in {"local", "ollama"}:
+            llm_configured = True
+        elif config.llm_backend == "none":
+            llm_configured = False
+        else:
+            llm_configured = bool(config.llm_api_key)
+        warnings = []
+        if not llm_configured:
+            warnings.append(
+                "LLM is not configured; free-text extraction is limited to explicit offline "
+                "visit keywords. Configure an LLM backend for full entity extraction."
+            )
+        return {
+            "status": "ok",
+            "llm_backend": config.llm_backend,
+            "llm_configured": llm_configured,
+            "offline_only": config.offline_only,
+            "warnings": warnings,
+        }
 
     app.include_router(_protected_router())
     return app

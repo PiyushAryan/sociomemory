@@ -7,11 +7,11 @@ from pathlib import Path
 @dataclass
 class SociomemoryConfig:
     neo4j_uri: str = "bolt://localhost:7687"
-    neo4j_user: str = "neo4j"
-    neo4j_password: str = "password"
+    neo4j_user: str = ""
+    neo4j_password: str = ""
     neo4j_database: str = "neo4j"
 
-    llm_backend: str = "gemini"
+    llm_backend: str = "openai"
     llm_api_key: str = ""
     llm_model: str = ""
     llm_embedding_model: str = ""
