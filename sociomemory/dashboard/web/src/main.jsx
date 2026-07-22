@@ -2,9 +2,8 @@ import React, { useEffect, useMemo, useState, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Link, useLocation, useNavigate } from "react-router-dom";
 import "./styles.css";
-import { inject } from "@vercel/analytics";
+import { Analytics } from "@vercel/analytics/react";
 
-inject();
 
 const INITIAL_CHILD_ID = "Piyush";
 const DASHBOARD_TOKEN_KEY = "sociomemory-dashboard-token";
@@ -893,6 +892,7 @@ function App() {
       </main>
       </>
       )}
+      <Analytics />
     </div>
   );
 }
